@@ -1,0 +1,6 @@
+{
+  "name": "Role-Based Student Management Portal",
+  "description": "Role-based student portal (Admin, Counselor, Student) with Notion API integration and data privacy filters.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
