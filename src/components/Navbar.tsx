@@ -80,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const BadgeIcon = badge.icon;
 
   return (
-    <header className="sticky top-0 z-40 w-full max-w-full bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100 shadow-sm overflow-x-hidden">
+    <header className="sticky top-0 z-50 w-full bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 w-full">
         <div className="flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-3 w-full min-w-0">
           {/* Zone 1: Brand Title (Clean, single-line, no left arrow) */}
@@ -241,163 +241,172 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {roleDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-fadeIn max-h-[80vh] overflow-y-auto">
-                  <div className="px-3.5 py-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between border-b border-slate-800 mb-1">
-                    <span>Switch Test Role / Portal</span>
-                    <span className="text-emerald-400 text-[9px] font-mono">Live Demo</span>
+                <>
+                  {/* Backdrop click layer */}
+                  <div
+                    className="fixed inset-0 z-[90] bg-black/20 md:bg-transparent"
+                    onClick={() => setRoleDropdownOpen(false)}
+                  />
+
+                  {/* Dropdown Menu Panel (Highest z-index, immune to clipping) */}
+                  <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1.25rem)] bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl shadow-black/90 py-2.5 z-[100] text-xs animate-fadeIn max-h-[80vh] overflow-y-auto ring-1 ring-white/10">
+                    <div className="px-3.5 py-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between border-b border-slate-800 mb-1">
+                      <span>Switch Test Role / Portal</span>
+                      <span className="text-emerald-400 text-[9px] font-mono">Live Demo</span>
+                    </div>
+
+                    {/* Section 1: Super Admin */}
+                    <div className="px-2 py-1">
+                      <span className="text-[10px] font-bold text-slate-400 px-2 uppercase block mb-1">Admin Access</span>
+                      <button
+                        onClick={() => {
+                          switchRoleQuick('admin');
+                          setActiveTab('overview');
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
+                          user?.role === 'admin'
+                            ? 'text-indigo-300 font-bold bg-indigo-500/20 border border-indigo-500/40 shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
+                          <div>
+                            <span className="block font-semibold text-xs">Dr. Shahzad (Super Admin)</span>
+                            <span className="text-[10px] text-slate-400 block">Full Master Database Access</span>
+                          </div>
+                        </div>
+                        {user?.role === 'admin' && <Check className="w-4 h-4 text-indigo-400 shrink-0" />}
+                      </button>
+                    </div>
+
+                    {/* Section 2: Counselors */}
+                    <div className="px-2 py-1 border-t border-slate-800 mt-1">
+                      <span className="text-[10px] font-bold text-slate-400 px-2 uppercase block mb-1">Counselor Cohorts</span>
+                      <button
+                        onClick={() => {
+                          switchRoleQuick('counselor', 'usr-counselor-1');
+                          setActiveTab('overview');
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
+                          user?.role === 'counselor' && user?.counselorId === 'counselor-1'
+                            ? 'text-emerald-300 font-bold bg-emerald-500/20 border border-emerald-500/40 shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <div>
+                            <span className="block font-semibold text-xs">Sarah Khan</span>
+                            <span className="text-[10px] text-slate-400 block">STEM Cohort (3 Students)</span>
+                          </div>
+                        </div>
+                        {user?.role === 'counselor' && user?.counselorId === 'counselor-1' && (
+                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          switchRoleQuick('counselor', 'usr-counselor-2');
+                          setActiveTab('overview');
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 ${
+                          user?.role === 'counselor' && user?.counselorId === 'counselor-2'
+                            ? 'text-emerald-300 font-bold bg-emerald-500/20 border border-emerald-500/40 shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <div>
+                            <span className="block font-semibold text-xs">Tariq Mehmood</span>
+                            <span className="text-[10px] text-slate-400 block">Business Cohort (2 Students)</span>
+                          </div>
+                        </div>
+                        {user?.role === 'counselor' && user?.counselorId === 'counselor-2' && (
+                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Section 3: Student Portals */}
+                    <div className="px-2 py-1 border-t border-slate-800 mt-1">
+                      <span className="text-[10px] font-bold text-slate-400 px-2 uppercase block mb-1">Student Portals</span>
+                      <button
+                        onClick={() => {
+                          switchRoleQuick('student', 'usr-student-1');
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
+                          user?.role === 'student' && user?.studentRollNo === 'STU-2024-001'
+                            ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-500/40 shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <GraduationCap className="w-4 h-4 text-sky-400 shrink-0" />
+                          <div>
+                            <span className="block font-semibold text-xs">Ayesha Malik</span>
+                            <span className="text-[10px] text-slate-400 font-mono block">STU-2024-001 • Paid</span>
+                          </div>
+                        </div>
+                        {user?.role === 'student' && user?.studentRollNo === 'STU-2024-001' && (
+                          <Check className="w-4 h-4 text-sky-400 shrink-0" />
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          switchRoleQuick('student', 'usr-student-2');
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 ${
+                          user?.role === 'student' && user?.studentRollNo === 'STU-2024-002'
+                            ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-500/40 shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <GraduationCap className="w-4 h-4 text-sky-400 shrink-0" />
+                          <div>
+                            <span className="block font-semibold text-xs">Ali Raza</span>
+                            <span className="text-[10px] text-slate-400 font-mono block">STU-2024-002 • Pending</span>
+                          </div>
+                        </div>
+                        {user?.role === 'student' && user?.studentRollNo === 'STU-2024-002' && (
+                          <Check className="w-4 h-4 text-sky-400 shrink-0" />
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          switchRoleQuick('student', 'usr-student-3');
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 ${
+                          user?.role === 'student' && user?.studentRollNo === 'STU-2024-003'
+                            ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-500/40 shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <GraduationCap className="w-4 h-4 text-sky-400 shrink-0" />
+                          <div>
+                            <span className="block font-semibold text-xs">Hamza Farooq</span>
+                            <span className="text-[10px] text-slate-400 font-mono block">STU-2024-003 • Overdue</span>
+                          </div>
+                        </div>
+                        {user?.role === 'student' && user?.studentRollNo === 'STU-2024-003' && (
+                          <Check className="w-4 h-4 text-sky-400 shrink-0" />
+                        )}
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Section 1: Super Admin */}
-                  <div className="px-2 py-1">
-                    <span className="text-[10px] font-bold text-slate-500 px-2 uppercase block mb-1">Admin Access</span>
-                    <button
-                      onClick={() => {
-                        switchRoleQuick('admin');
-                        setActiveTab('overview');
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
-                        user?.role === 'admin'
-                          ? 'text-indigo-300 font-bold bg-indigo-500/15 border border-indigo-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        <div>
-                          <span className="block font-semibold">Dr. Shahzad (Super Admin)</span>
-                          <span className="text-[10px] text-slate-500 block">Full Master Database Access</span>
-                        </div>
-                      </div>
-                      {user?.role === 'admin' && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
-                    </button>
-                  </div>
-
-                  {/* Section 2: Counselors */}
-                  <div className="px-2 py-1 border-t border-slate-800/60 mt-1">
-                    <span className="text-[10px] font-bold text-slate-500 px-2 uppercase block mb-1">Counselor Cohorts</span>
-                    <button
-                      onClick={() => {
-                        switchRoleQuick('counselor', 'usr-counselor-1');
-                        setActiveTab('overview');
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-colors ${
-                        user?.role === 'counselor' && user?.counselorId === 'counselor-1'
-                          ? 'text-emerald-300 font-bold bg-emerald-500/15 border border-emerald-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <div>
-                          <span className="block font-semibold">Sarah Khan</span>
-                          <span className="text-[10px] text-slate-500 block">STEM Cohort (3 Students)</span>
-                        </div>
-                      </div>
-                      {user?.role === 'counselor' && user?.counselorId === 'counselor-1' && (
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        switchRoleQuick('counselor', 'usr-counselor-2');
-                        setActiveTab('overview');
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-colors ${
-                        user?.role === 'counselor' && user?.counselorId === 'counselor-2'
-                          ? 'text-emerald-300 font-bold bg-emerald-500/15 border border-emerald-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <div>
-                          <span className="block font-semibold">Tariq Mehmood</span>
-                          <span className="text-[10px] text-slate-500 block">Business Cohort (2 Students)</span>
-                        </div>
-                      </div>
-                      {user?.role === 'counselor' && user?.counselorId === 'counselor-2' && (
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Section 3: Student Portals */}
-                  <div className="px-2 py-1 border-t border-slate-800/60 mt-1">
-                    <span className="text-[10px] font-bold text-slate-500 px-2 uppercase block mb-1">Student Portals</span>
-                    <button
-                      onClick={() => {
-                        switchRoleQuick('student', 'usr-student-1');
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-colors ${
-                        user?.role === 'student' && user?.studentRollNo === 'STU-2024-001'
-                          ? 'text-sky-300 font-bold bg-sky-500/15 border border-sky-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <GraduationCap className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                        <div>
-                          <span className="block font-semibold">Ayesha Malik</span>
-                          <span className="text-[10px] text-slate-500 font-mono block">STU-2024-001 • Paid</span>
-                        </div>
-                      </div>
-                      {user?.role === 'student' && user?.studentRollNo === 'STU-2024-001' && (
-                        <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        switchRoleQuick('student', 'usr-student-2');
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-colors ${
-                        user?.role === 'student' && user?.studentRollNo === 'STU-2024-002'
-                          ? 'text-sky-300 font-bold bg-sky-500/15 border border-sky-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <GraduationCap className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                        <div>
-                          <span className="block font-semibold">Ali Raza</span>
-                          <span className="text-[10px] text-slate-500 font-mono block">STU-2024-002 • Pending</span>
-                        </div>
-                      </div>
-                      {user?.role === 'student' && user?.studentRollNo === 'STU-2024-002' && (
-                        <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        switchRoleQuick('student', 'usr-student-3');
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-colors ${
-                        user?.role === 'student' && user?.studentRollNo === 'STU-2024-003'
-                          ? 'text-sky-300 font-bold bg-sky-500/15 border border-sky-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <GraduationCap className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                        <div>
-                          <span className="block font-semibold">Hamza Farooq</span>
-                          <span className="text-[10px] text-slate-500 font-mono block">STU-2024-003 • Overdue</span>
-                        </div>
-                      </div>
-                      {user?.role === 'student' && user?.studentRollNo === 'STU-2024-003' && (
-                        <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                </>
               )}
             </div>
 
