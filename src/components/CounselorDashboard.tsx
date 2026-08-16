@@ -1,316 +1,309 @@
-import React, { useState } from 'react';
-import { StudentRecord, CounselorRecord, User } from '../types';
-import { 
-  Users, 
-  UserCheck, 
-  Plus, 
-  Search, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
-  MessageSquare, 
-  ShieldCheck, 
-  Lock, 
-  FileText,
-  Send,
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { StudentRecord, FeeRecord } from '../types';
+import {
+  Users,
+  Search,
+  FileEdit,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Plus,
+  Filter,
+  DollarSign,
+  GraduationCap,
+  MessageSquare,
   Sparkles,
-  BookOpen,
-  Award
 } from 'lucide-react';
 
-interface CounselorDashboardProps {
-  currentUser: User;
-  students: StudentRecord[];
-  counselorInfo?: CounselorRecord;
-  onAddNote: (studentId: string, noteText: string) => void;
-  onUpdateFee: (studentId: string, status: 'Paid' | 'Pending' | 'Overdue', paidAmount: number) => void;
-  onSelectStudentDetail: (student: StudentRecord) => void;
-}
+export const CounselorDashboard: React.FC = () => {
+  const { user, token } = useAuth();
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [fees, setFees] = useState<FeeRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
-export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({
-  currentUser,
-  students,
-  counselorInfo,
-  onAddNote,
-  onUpdateFee,
-  onSelectStudentDetail,
-}) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStudentForNote, setSelectedStudentForNote] = useState<StudentRecord | null>(null);
-  const [newNoteText, setNewNoteText] = useState('');
+  useEffect(() => {
+    fetchCohortData();
+  }, [user]);
 
-  // PRIVACY FILTER ENFORCEMENT:
-  // Strictly filter for students assigned to THIS counselor
-  const assignedStudents = students.filter(
-    (s) => s.counselorId === currentUser.counselorId
-  );
+  const fetchCohortData = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const [stuRes, feeRes] = await Promise.all([
+        fetch('/api/students', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/fees', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
 
-  const filteredStudents = assignedStudents.filter((s) =>
-    s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.rollNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.course.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      const stuData = await stuRes.json();
+      const feeData = await feeRes.json();
 
-  const handleNoteSubmit = (e: React.FormEvent) => {
+      setStudents(stuData.students || []);
+      setFees(feeData.fees || []);
+      if (stuData.students?.length > 0 && !selectedStudent) {
+        setSelectedStudent(stuData.students[0]);
+      }
+    } catch (e) {
+      console.error('Error loading counselor cohort', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudentForNote || !newNoteText.trim()) return;
-    onAddNote(selectedStudentForNote.id, newNoteText.trim());
-    setNewNoteText('');
-    setSelectedStudentForNote(null);
+    if (!selectedStudent || !noteText.trim() || !token) return;
+
+    setSavingNote(true);
+    try {
+      const res = await fetch(`/api/students/${selectedStudent.id}/notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ note: noteText }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Update local state
+        setStudents((prev) =>
+          prev.map((s) => (s.id === selectedStudent.id ? data.student : s))
+        );
+        setSelectedStudent(data.student);
+        setNoteText('');
+      }
+    } catch (err) {
+      console.error('Error adding note', err);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const filteredStudents = students.filter((s) => {
+    const matchesSearch =
+      s.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.rollNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.course.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || s.feeStatus === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Paid':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'Pending':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'Overdue':
+        return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      default:
+        return 'bg-slate-800 text-slate-400';
+    }
   };
 
   return (
-    <div className="space-y-8 pb-12">
-      
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <img
-              src={currentUser.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'}
-              alt={currentUser.name}
-              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-indigo-500/30 shadow-md"
-            />
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-2">
-                <UserCheck className="w-3.5 h-3.5" /> Level 2 Counselor Scope
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Welcome, {currentUser.name}
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1">
-                Specialization: <span className="font-semibold text-indigo-300">{counselorInfo?.specialization || 'Academic Counselor'}</span>
-              </p>
-            </div>
+    <div className="space-y-6 animate-fadeIn">
+      {/* Header Profile Bar */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg">
+            {user?.name?.slice(0, 2).toUpperCase() || 'CS'}
           </div>
-
-          {/* Privacy Scope Card */}
-          <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 text-xs text-slate-300 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-bold text-slate-200">Scoped Privacy Mode</div>
-              <div className="text-[11px] text-slate-400">
-                You can only view & manage your <span className="font-bold text-indigo-400">{assignedStudents.length} assigned students</span>.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Bar for Counselor */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-          <div className="text-xs font-semibold text-slate-400 uppercase">Assigned Group</div>
-          <div className="text-2xl font-extrabold text-white mt-2">{assignedStudents.length} Students</div>
-          <p className="text-xs text-slate-500 mt-1">Under your direct academic supervision</p>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-          <div className="text-xs font-semibold text-slate-400 uppercase">Average Academic Progress</div>
-          <div className="text-2xl font-extrabold text-emerald-400 mt-2">
-            {assignedStudents.length > 0
-              ? Math.round(
-                  assignedStudents.reduce((acc, s) => acc + s.academicProgress, 0) / assignedStudents.length
-                )
-              : 0}%
-          </div>
-          <p className="text-xs text-slate-500 mt-1">Class average grade performance</p>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-          <div className="text-xs font-semibold text-slate-400 uppercase">Fee Clearance Rate</div>
-          <div className="text-2xl font-extrabold text-indigo-400 mt-2">
-            {assignedStudents.filter((s) => s.feeStatus === 'Paid').length} / {assignedStudents.length} Paid
-          </div>
-          <p className="text-xs text-slate-500 mt-1">Cleared tuition records</p>
-        </div>
-      </div>
-
-      {/* Assigned Students List */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Users className="w-4 h-4 text-indigo-400" />
-              My Assigned Students ({filteredStudents.length})
-            </h2>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-white">{user?.name}</h1>
+              <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+                Assigned Counselor
+              </span>
+            </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Strictly filtered for counselor privacy. Other counselors' students are hidden.
+              Filtered Scope: Showing only students linked to <code className="text-emerald-300 font-mono">{user?.counselorId || 'your ID'}</code>
             </p>
           </div>
-
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Filter my students..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-9 pr-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
         </div>
 
-        {/* Student Cards Grid */}
-        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredStudents.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-slate-500 text-xs">
-              No students found in your assigned group.
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-950 border border-slate-800 px-3 py-2 rounded-xl text-xs">
+            <span className="text-slate-500 block text-[10px] uppercase font-semibold">Active Cohort</span>
+            <span className="font-mono text-white font-bold">{students.length} Assigned Students</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Cohort Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-3.5 rounded-2xl">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search by student name, roll number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Filter className="w-3.5 h-3.5 text-slate-400" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="all">All Fee Statuses</option>
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
+            <option value="Overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main 2-Column Layout (Student List on Left, Active Student Detail on Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: Assigned Students List */}
+        <div className="lg:col-span-5 space-y-3">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1 flex items-center justify-between">
+            <span>Cohort Students ({filteredStudents.length})</span>
+            <span className="text-[10px] text-emerald-400">Server Filtered</span>
+          </h2>
+
+          {loading ? (
+            <div className="p-8 text-center text-xs text-slate-500 bg-slate-900 border border-slate-800 rounded-2xl">
+              Loading cohort...
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500 bg-slate-900 border border-slate-800 rounded-2xl">
+              No students found matching filter.
             </div>
           ) : (
-            filteredStudents.map((student) => (
-              <div
-                key={student.id}
-                className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 hover:border-slate-600 transition space-y-4"
-              >
-                {/* Top Info */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold text-base">
-                      {student.fullName.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-bold text-sm text-slate-100 flex items-center gap-2">
-                        {student.fullName}
-                        <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">
-                          {student.rollNo}
-                        </span>
+            <div className="space-y-2.5">
+              {filteredStudents.map((stu) => {
+                const isSelected = selectedStudent?.id === stu.id;
+                return (
+                  <button
+                    key={stu.id}
+                    onClick={() => setSelectedStudent(stu)}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all ${
+                      isSelected
+                        ? 'bg-slate-800/90 border-emerald-500/40 shadow-lg'
+                        : 'bg-slate-900 border-slate-800/80 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{stu.fullName}</p>
+                        <p className="text-xs text-slate-400 font-mono">{stu.rollNo}</p>
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">{student.course}</div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${getStatusBadge(stu.feeStatus)}`}>
+                        {stu.feeStatus}
+                      </span>
                     </div>
-                  </div>
 
-                  {/* Fee Pill */}
-                  {student.feeStatus === 'Paid' && (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Paid
-                    </span>
-                  )}
-                  {student.feeStatus === 'Pending' && (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                      Pending
-                    </span>
-                  )}
-                  {student.feeStatus === 'Overdue' && (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                      Overdue
-                    </span>
-                  )}
-                </div>
-
-                {/* Progress Bar & Stats */}
-                <div className="space-y-1.5 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                  <div className="flex justify-between text-xs text-slate-300">
-                    <span className="font-medium">Academic Progress</span>
-                    <span className="font-bold text-indigo-400">{student.academicProgress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full"
-                      style={{ width: `${student.academicProgress}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[11px] text-slate-400 pt-1">
-                    <span>Attendance: <strong className="text-slate-200">{student.attendancePercentage}%</strong></span>
-                    <span>Fee Balance: <strong className="text-slate-200">${student.feeAmount - student.feePaid}</strong></span>
-                  </div>
-                </div>
-
-                {/* Recent Counselor Notes */}
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>Counselor Notes ({student.counselorNotes.length})</span>
-                  </div>
-
-                  {student.counselorNotes.length > 0 ? (
-                    <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 text-xs text-slate-300">
-                      <p className="italic text-slate-300">"{student.counselorNotes[0].note}"</p>
-                      <p className="text-[10px] text-slate-500 mt-1 font-mono">
-                        — {student.counselorNotes[0].authorName}, {student.counselorNotes[0].date}
-                      </p>
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                      <span>{stu.course}</span>
+                      <span className="font-mono text-emerald-400">${stu.feePaid} / ${stu.feeAmount}</span>
                     </div>
-                  ) : (
-                    <p className="text-[11px] text-slate-500 italic">No notes added yet.</p>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
-                  <button
-                    onClick={() => setSelectedStudentForNote(student)}
-                    className="flex-1 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 transition flex items-center justify-center gap-1.5"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    Add Counseling Note
                   </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-                  <button
-                    onClick={() => onSelectStudentDetail(student)}
-                    className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-                  >
-                    View Details
-                  </button>
+        {/* Right Column: Selected Student Academic & Counseling Panel */}
+        <div className="lg:col-span-7">
+          {selectedStudent ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+              <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">{selectedStudent.fullName}</h2>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    {selectedStudent.rollNo} • {selectedStudent.email}
+                  </p>
                 </div>
-
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusBadge(selectedStudent.feeStatus)}`}>
+                  Fee: {selectedStudent.feeStatus}
+                </span>
               </div>
-            ))
+
+              {/* Quick Metrics */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                  <span className="text-[10px] text-slate-500 uppercase block font-medium">Progress</span>
+                  <span className="text-sm font-bold text-indigo-400 font-mono">{selectedStudent.academicProgress}%</span>
+                </div>
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                  <span className="text-[10px] text-slate-500 uppercase block font-medium">Attendance</span>
+                  <span className="text-sm font-bold text-emerald-400 font-mono">{selectedStudent.attendancePercentage}%</span>
+                </div>
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                  <span className="text-[10px] text-slate-500 uppercase block font-medium">Fee Balance</span>
+                  <span className="text-sm font-bold text-amber-400 font-mono">
+                    ${selectedStudent.feeAmount - selectedStudent.feePaid}
+                  </span>
+                </div>
+              </div>
+
+              {/* Add Note Form */}
+              <form onSubmit={handleAddNote} className="space-y-3">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400" /> Log Counseling &amp; Academic Note
+                </label>
+                <textarea
+                  rows={3}
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Enter observation, guidance recommendation, or academic review..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingNote || !noteText.trim()}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 shadow-lg shadow-emerald-600/20"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {savingNote ? 'Saving...' : 'Add Note to Student Profile'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Past Counseling Session Notes */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  Counseling History ({selectedStudent.counselorNotes.length})
+                </h3>
+                {selectedStudent.counselorNotes.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic py-2">No notes recorded yet for this student.</p>
+                ) : (
+                  <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                    {selectedStudent.counselorNotes.map((n) => (
+                      <div key={n.id} className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+                        <div className="flex items-center justify-between text-slate-400 mb-1">
+                          <span className="font-semibold text-emerald-300">{n.authorName}</span>
+                          <span className="text-[11px] text-slate-500">{n.date}</span>
+                        </div>
+                        <p className="text-slate-300">{n.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-slate-500 bg-slate-900 border border-slate-800 rounded-2xl text-xs">
+              Select a student from your cohort on the left to view records and log counseling sessions.
+            </div>
           )}
         </div>
       </div>
-
-      {/* Modal for Adding Counselor Note */}
-      {selectedStudentForNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 text-slate-100 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-white">
-                Add Counselor Note for {selectedStudentForNote.fullName}
-              </h3>
-              <button
-                onClick={() => setSelectedStudentForNote(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleNoteSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-2">
-                  Counseling Feedback / Advisory Note
-                </label>
-                <textarea
-                  rows={4}
-                  value={newNoteText}
-                  onChange={(e) => setNewNoteText(e.target.value)}
-                  placeholder="Record academic feedback, course guidance, or fee installment advisory..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedStudentForNote(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md"
-                >
-                  Save Note
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };

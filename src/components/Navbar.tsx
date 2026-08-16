@@ -1,179 +1,274 @@
 import React from 'react';
-import { User, UserRole, NotionConfig } from '../types';
-import { INITIAL_USERS } from '../data/mockData';
-import { 
-  ShieldCheck, 
-  UserCheck, 
-  GraduationCap, 
-  Database, 
-  RefreshCw, 
-  LogOut, 
-  HelpCircle,
-  KeyRound,
-  Sparkles
-} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ShieldCheck, Key, RefreshCw, LogOut, Database, UserSwitch, ChevronDown } from 'lucide-react';
+import { UserRole } from '../types';
 
 interface NavbarProps {
-  currentUser: User;
-  onSwitchUser: (user: User) => void;
-  notionConfig: NotionConfig;
-  onOpenNotionSetup: () => void;
-  onOpenSchemaGuide: () => void;
+  onOpenNotionModal: () => void;
+  onOpenJwtInspector: () => void;
+  onOpenArchitecture: () => void;
   onSyncNotion: () => void;
   isSyncing: boolean;
+  notionConnected: boolean;
+  activeTab: 'overview' | 'students' | 'counselors' | 'fees' | 'notion';
+  setActiveTab: (tab: 'overview' | 'students' | 'counselors' | 'fees' | 'notion') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  currentUser,
-  onSwitchUser,
-  notionConfig,
-  onOpenNotionSetup,
-  onOpenSchemaGuide,
+  onOpenNotionModal,
+  onOpenJwtInspector,
+  onOpenArchitecture,
   onSyncNotion,
   isSyncing,
+  notionConnected,
+  activeTab,
+  setActiveTab,
 }) => {
-  const getRoleBadge = (role: UserRole) => {
+  const { user, logout, switchRoleQuick } = useAuth();
+  const [roleDropdownOpen, setRoleDropdownOpen] = React.useState(false);
+
+  const getRoleBadge = (role?: UserRole) => {
     switch (role) {
       case 'admin':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Admin (Level 1)
-          </span>
-        );
+        return {
+          bg: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+          label: 'Super Admin',
+        };
       case 'counselor':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-            <UserCheck className="w-3.5 h-3.5" />
-            Counselor (Level 2)
-          </span>
-        );
+        return {
+          bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+          label: 'Counselor',
+        };
       case 'student':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <GraduationCap className="w-3.5 h-3.5" />
-            Student (Level 3)
-          </span>
-        );
+        return {
+          bg: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+          label: 'Student',
+        };
+      default:
+        return { bg: 'bg-slate-800 text-slate-300', label: 'Guest' };
     }
   };
 
+  const badge = getRoleBadge(user?.role);
+
   return (
-    <header className="sticky top-0 z-40 bg-slate-900 text-white border-b border-slate-800 shadow-sm backdrop-blur-md bg-opacity-95">
+    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           
-          {/* Logo & Branding */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-              <Database className="w-5 h-5" />
+          {/* Zone 1: Brand title (One line, no child elements below) */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-100 tracking-tight text-base sm:text-lg">
-                  PortalSync
-                </span>
-                <span className="hidden sm:inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                  Notion RBAC
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Role-Based Student Privacy Gateway
-              </p>
-            </div>
+            <span className="font-bold text-white text-base tracking-tight whitespace-nowrap">
+              Notion Portal
+            </span>
           </div>
 
-          {/* Center Tools: Notion Sync Status & Schema Button */}
-          <div className="hidden md:flex items-center gap-3 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60">
+          {/* Zone 2: Navigation Links (single line, role sensitive) */}
+          <nav className="hidden md:flex items-center gap-1">
             <button
-              onClick={onOpenNotionSetup}
-              className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
-                notionConfig.isConnected
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
-                  : 'bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20'
+              onClick={() => setActiveTab('overview')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'overview'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
               }`}
             >
-              <div className={`w-2 h-2 rounded-full ${notionConfig.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span>{notionConfig.isConnected ? 'Notion Connected' : 'Notion Mode: Demo'}</span>
-              <KeyRound className="w-3.5 h-3.5 ml-1 opacity-70" />
+              Overview
             </button>
 
+            {user?.role === 'admin' && (
+              <>
+                <button
+                  onClick={() => setActiveTab('students')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === 'students'
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  All Students
+                </button>
+                <button
+                  onClick={() => setActiveTab('counselors')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === 'counselors'
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  Counselors
+                </button>
+                <button
+                  onClick={() => setActiveTab('fees')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === 'fees'
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  Fee Ledger
+                </button>
+              </>
+            )}
+
+            {user?.role === 'counselor' && (
+              <>
+                <button
+                  onClick={() => setActiveTab('students')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === 'students'
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  Assigned Students
+                </button>
+                <button
+                  onClick={() => setActiveTab('fees')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === 'fees'
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  Cohort Fees
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={onOpenArchitecture}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40 whitespace-nowrap transition-colors"
+            >
+              RBAC Flow
+            </button>
+          </nav>
+
+          {/* Zone 3: Actions (Role switcher, JWT inspector, Notion Sync, Logout) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Notion Status / Sync */}
             <button
               onClick={onSyncNotion}
               disabled={isSyncing}
-              className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-slate-700/60 transition"
-              title="Sync latest data with Notion"
+              title={notionConnected ? 'Sync with Live Notion DB' : 'Simulate Notion DB Sync'}
+              className="p-2 text-slate-400 hover:text-white rounded-lg bg-slate-800/60 hover:bg-slate-800 transition-colors border border-slate-700/50 flex items-center gap-1.5 text-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-400' : ''}`} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+              <span className="hidden xl:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
             </button>
 
+            {/* JWT Inspector Button */}
             <button
-              onClick={onOpenSchemaGuide}
-              className="flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-300 px-2.5 py-1.5 rounded-lg hover:bg-slate-700/60 transition"
-              title="View required Notion Database column mapping"
+              onClick={onOpenJwtInspector}
+              title="Inspect Live JWT Claims"
+              className="p-2 text-amber-400 hover:text-amber-300 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-colors text-xs flex items-center gap-1.5"
             >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Notion Mapping</span>
+              <Key className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline font-mono">JWT</span>
+            </button>
+
+            {/* Quick Switch Role Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${badge.bg}`}
+              >
+                <span>{badge.label}</span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+
+              {roleDropdownOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 text-xs animate-fadeIn"
+                  onMouseLeave={() => setRoleDropdownOpen(false)}
+                >
+                  <div className="px-3 py-1 text-[10px] uppercase font-semibold text-slate-500">
+                    Switch Test User
+                  </div>
+                  <button
+                    onClick={() => {
+                      switchRoleQuick('admin');
+                      setRoleDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-800 flex items-center justify-between ${
+                      user?.role === 'admin' ? 'text-indigo-400 font-semibold' : 'text-slate-300'
+                    }`}
+                  >
+                    <span>Administrator</span>
+                    <span className="text-[10px] text-slate-500">Dr. Shahzad</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      switchRoleQuick('counselor', 'usr-counselor-1');
+                      setRoleDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-800 flex items-center justify-between ${
+                      user?.role === 'counselor' && user?.counselorId === 'counselor-1'
+                        ? 'text-emerald-400 font-semibold'
+                        : 'text-slate-300'
+                    }`}
+                  >
+                    <span>Counselor: Sarah</span>
+                    <span className="text-[10px] text-slate-500">STEM (3 stu)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      switchRoleQuick('counselor', 'usr-counselor-2');
+                      setRoleDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-800 flex items-center justify-between ${
+                      user?.role === 'counselor' && user?.counselorId === 'counselor-2'
+                        ? 'text-emerald-400 font-semibold'
+                        : 'text-slate-300'
+                    }`}
+                  >
+                    <span>Counselor: Tariq</span>
+                    <span className="text-[10px] text-slate-500">Business (2 stu)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      switchRoleQuick('student', 'usr-student-1');
+                      setRoleDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-800 flex items-center justify-between ${
+                      user?.role === 'student' && user?.studentRollNo === 'STU-2024-001'
+                        ? 'text-sky-400 font-semibold'
+                        : 'text-slate-300'
+                    }`}
+                  >
+                    <span>Student: Ayesha</span>
+                    <span className="text-[10px] text-slate-500">STU-001</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      switchRoleQuick('student', 'usr-student-3');
+                      setRoleDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-800 flex items-center justify-between ${
+                      user?.role === 'student' && user?.studentRollNo === 'STU-2024-003'
+                        ? 'text-sky-400 font-semibold'
+                        : 'text-slate-300'
+                    }`}
+                  >
+                    <span>Student: Hamza</span>
+                    <span className="text-[10px] text-slate-500">STU-003</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Logout button */}
+            <button
+              onClick={logout}
+              title="Sign Out"
+              className="p-2 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Right Controls: Role Switcher & User Profile */}
-          <div className="flex items-center gap-3">
-            
-            {/* Quick Role Simulator Select */}
-            <div className="relative">
-              <label htmlFor="role-select" className="sr-only">Switch Role</label>
-              <select
-                id="role-select"
-                value={currentUser.id}
-                onChange={(e) => {
-                  const targetUser = INITIAL_USERS.find((u) => u.id === e.target.value);
-                  if (targetUser) onSwitchUser(targetUser);
-                }}
-                className="bg-slate-800 text-slate-200 text-xs font-medium border border-slate-700 rounded-lg px-2.5 py-1.5 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer hover:bg-slate-750 transition"
-              >
-                <optgroup label="Level 1: Admin">
-                  {INITIAL_USERS.filter((u) => u.role === 'admin').map((u) => (
-                    <option key={u.id} value={u.id}>
-                      👑 {u.name} (Admin)
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Level 2: Counselors">
-                  {INITIAL_USERS.filter((u) => u.role === 'counselor').map((u) => (
-                    <option key={u.id} value={u.id}>
-                      👨‍🏫 {u.name} (Counselor)
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Level 3: Students">
-                  {INITIAL_USERS.filter((u) => u.role === 'student').map((u) => (
-                    <option key={u.id} value={u.id}>
-                      🎓 {u.name} (Student)
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-
-            {/* Active User Badge */}
-            <div className="flex items-center gap-2.5 pl-2 border-l border-slate-800">
-              <img
-                src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                alt={currentUser.name}
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/30"
-              />
-              <div className="hidden lg:block text-left">
-                <div className="text-xs font-semibold text-slate-200 flex items-center gap-1">
-                  {currentUser.name}
-                </div>
-                <div className="mt-0.5">{getRoleBadge(currentUser.role)}</div>
-              </div>
-            </div>
-
-          </div>
-
         </div>
       </div>
     </header>

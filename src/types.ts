@@ -4,11 +4,18 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: UserRole;
   avatar?: string;
-  counselorId?: string; // For student: assigned counselor ID
+  linkedProfileId?: string; // Relation to Counselors or Students DB
+  counselorId?: string; // For counselor/student
   counselorName?: string;
-  studentRollNo?: string; // For student: roll number to link to student record
+  studentRollNo?: string;
+}
+
+export interface AuthSession {
+  token: string;
+  user: User;
 }
 
 export interface StudentRecord {
@@ -33,8 +40,8 @@ export interface StudentRecord {
     note: string;
   }[];
   lastSyncedAt: string;
-  academicProgress: number; // Percentage 0-100
-  attendancePercentage: number;
+  academicProgress: number; // 0-100%
+  attendancePercentage: number; // 0-100%
 }
 
 export interface CounselorRecord {
@@ -47,19 +54,27 @@ export interface CounselorRecord {
   avatar: string;
 }
 
+export interface FeeRecord {
+  id: string;
+  studentId: string;
+  studentRollNo: string;
+  studentName: string;
+  course: string;
+  totalAmount: number;
+  paidAmount: number;
+  balance: number;
+  status: 'Paid' | 'Pending' | 'Overdue' | 'Partial';
+  dueDate: string;
+  lastPaymentDate?: string;
+}
+
 export interface NotionConfig {
   apiKey: string;
+  usersDatabaseId: string;
   studentsDatabaseId: string;
+  counselorsDatabaseId: string;
+  feesDatabaseId: string;
   isConnected: boolean;
   lastSyncTime: string | null;
   mode: 'live' | 'mock';
-}
-
-export interface SystemStats {
-  totalStudents: number;
-  totalCounselors: number;
-  totalFeesCollected: number;
-  totalPendingFees: number;
-  paidStudentsCount: number;
-  pendingStudentsCount: number;
 }

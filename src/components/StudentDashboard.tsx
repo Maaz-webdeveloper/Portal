@@ -1,275 +1,280 @@
-import React, { useState } from 'react';
-import { StudentRecord, User } from '../types';
-import { 
-  GraduationCap, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
-  UserCheck, 
-  BookOpen, 
-  DollarSign, 
-  Download, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Lock, 
-  ShieldCheck, 
-  MessageSquare,
-  Sparkles,
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { StudentRecord, FeeRecord } from '../types';
+import {
+  GraduationCap,
+  Calendar,
+  User,
+  CreditCard,
+  CheckCircle,
+  Clock,
+  AlertCircle,
   FileText,
-  Printer
+  Phone,
+  Mail,
+  BookOpen,
+  Award,
+  Download,
+  ShieldAlert,
 } from 'lucide-react';
 
-interface StudentDashboardProps {
-  currentUser: User;
-  studentRecord?: StudentRecord;
-}
+export const StudentDashboard: React.FC = () => {
+  const { user, token } = useAuth();
+  const [studentData, setStudentData] = useState<StudentRecord | null>(null);
+  const [feeRecord, setFeeRecord] = useState<FeeRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [receiptDownloaded, setReceiptDownloaded] = useState(false);
 
-export const StudentDashboard: React.FC<StudentDashboardProps> = ({
-  currentUser,
-  studentRecord,
-}) => {
-  const [showReceipt, setShowReceipt] = useState(false);
+  useEffect(() => {
+    fetchStudentData();
+  }, [user]);
 
-  if (!studentRecord) {
+  const fetchStudentData = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      // 1. Fetch Student details (Filtered strictly by JWT on backend)
+      const res = await fetch('/api/students', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.students && data.students.length > 0) {
+        setStudentData(data.students[0]);
+      }
+
+      // 2. Fetch Fee details (Filtered strictly by JWT on backend)
+      const feeRes = await fetch('/api/fees', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const feeData = await feeRes.json();
+      if (feeData.fees && feeData.fees.length > 0) {
+        setFeeRecord(feeData.fees[0]);
+      }
+    } catch (e) {
+      console.error('Error fetching student data', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadReceipt = () => {
+    setReceiptDownloaded(true);
+    setTimeout(() => setReceiptDownloaded(false), 3000);
+  };
+
+  if (loading) {
     return (
-      <div className="py-16 text-center bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4">
-        <GraduationCap className="w-12 h-12 text-amber-400 mx-auto animate-bounce" />
-        <h2 className="text-xl font-bold text-white">Student Profile Link Pending</h2>
-        <p className="text-sm text-slate-400 max-w-md mx-auto">
-          No matching student roll number was linked to email <span className="text-indigo-400 font-mono">{currentUser.email}</span>. Switch to another student account from the top right role switcher to test Level 3 privacy!
+      <div className="py-16 text-center text-slate-400">
+        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm">Fetching verified student profile...</p>
+      </div>
+    );
+  }
+
+  if (!studentData) {
+    return (
+      <div className="max-w-xl mx-auto my-12 p-8 bg-slate-900 border border-slate-800 rounded-2xl text-center">
+        <ShieldAlert className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-white">Student Record Not Found</h3>
+        <p className="text-sm text-slate-400 mt-2">
+          No linked record was found for roll number <strong>{user?.studentRollNo || user?.email}</strong>.
         </p>
       </div>
     );
   }
 
-  const feeRemaining = studentRecord.feeAmount - studentRecord.feePaid;
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Paid':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'Pending':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'Overdue':
+        return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      default:
+        return 'bg-slate-800 text-slate-400 border-slate-700';
+    }
+  };
 
   return (
-    <div className="space-y-8 pb-12">
-      
-      {/* Student Welcome Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <img
-              src={currentUser.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'}
-              alt={currentUser.name}
-              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-indigo-500/30 shadow-md"
-            />
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-2">
-                <GraduationCap className="w-3.5 h-3.5" /> Level 3 Student Private Portal
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Welcome, {studentRecord.fullName}
-              </h1>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 mt-1">
-                <span>Roll No: <strong className="text-indigo-300 font-mono">{studentRecord.rollNo}</strong></span>
-                <span>•</span>
-                <span>Course: <strong className="text-slate-100">{studentRecord.course}</strong></span>
-              </div>
-            </div>
+    <div className="space-y-6 animate-fadeIn">
+      {/* Student Welcome Header */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xl">
+            {studentData.fullName.slice(0, 2).toUpperCase()}
           </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-white">{studentData.fullName}</h1>
+              <span className="text-xs bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-full font-mono">
+                {studentData.rollNo}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+              <span>{studentData.course}</span>
+              <span>•</span>
+              <span>Enrolled: {studentData.enrollmentDate}</span>
+            </p>
+          </div>
+        </div>
 
-          {/* Privacy Level Badge */}
-          <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 text-xs text-slate-300 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-bold text-slate-200">Personal Data Sandbox</div>
-              <div className="text-[11px] text-slate-400">
-                You can only see <span className="font-bold text-amber-400">your own personal fee records and course notes</span>.
-              </div>
-            </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="p-3 bg-slate-950 border border-slate-800/80 rounded-xl text-xs text-slate-300">
+            <span className="text-slate-500 block text-[10px] uppercase font-semibold">Privacy Scope</span>
+            <span className="text-emerald-400 font-medium">Single Student Record Enforced</span>
           </div>
         </div>
       </div>
 
-      {/* Grid: Fee Status Card + Counselor Contact */}
+      {/* Grid of Key Info (Course Progress, Fees, Counselor) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Tuition Fee Financial Summary (2 cols) */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-emerald-400" />
-                Tuition Fee Account Overview
+        {/* Card 1: Academic & Attendance */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-white text-sm flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-indigo-400" /> Academic Progress
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Your official financial records synced from Notion</p>
+              <span className="text-xs font-mono text-indigo-400 font-bold">{studentData.academicProgress}%</span>
             </div>
 
-            {studentRecord.feeStatus === 'Paid' && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 className="w-4 h-4" /> Account Cleared
-              </span>
-            )}
-            {studentRecord.feeStatus === 'Pending' && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <Clock className="w-4 h-4" /> Installment Pending
-              </span>
-            )}
-            {studentRecord.feeStatus === 'Overdue' && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                <AlertTriangle className="w-4 h-4" /> Payment Overdue
-              </span>
-            )}
-          </div>
-
-          {/* Money Breakdown Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">Total Course Fee</span>
-              <div className="text-2xl font-extrabold text-white mt-1">${studentRecord.feeAmount}</div>
-            </div>
-
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">Paid Amount</span>
-              <div className="text-2xl font-extrabold text-emerald-400 mt-1">${studentRecord.feePaid}</div>
-            </div>
-
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">Balance Due</span>
-              <div className="text-2xl font-extrabold text-amber-400 mt-1">${feeRemaining}</div>
-              <div className="text-[10px] text-slate-500 mt-1">Due Date: {studentRecord.dueDate}</div>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="space-y-2 pt-2">
-            <div className="flex justify-between text-xs font-semibold">
-              <span className="text-slate-400">Payment Completion</span>
-              <span className="text-emerald-400">
-                {Math.round((studentRecord.feePaid / studentRecord.feeAmount) * 100)}%
-              </span>
-            </div>
-            <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
-              <div
-                className="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-500"
-                style={{ width: `${(studentRecord.feePaid / studentRecord.feeAmount) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              onClick={() => setShowReceipt(!showReceipt)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
-            >
-              <Printer className="w-4 h-4 text-indigo-400" />
-              <span>{showReceipt ? 'Hide Receipt' : 'Generate Official Fee Receipt'}</span>
-            </button>
-          </div>
-
-          {/* Fee Receipt Drawer */}
-          {showReceipt && (
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-4 font-mono text-xs text-slate-300 shadow-inner">
-              <div className="flex justify-between items-start border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="font-bold text-sm text-white">TUITION FEE OFFICIAL RECEIPT</h3>
-                  <p className="text-[10px] text-slate-500">Receipt No: REC-{studentRecord.rollNo}-2026</p>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                  <span>Syllabus Completion</span>
+                  <span>{studentData.academicProgress}%</span>
                 </div>
-                <span className="text-emerald-400 font-bold border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10">
-                  VERIFIED NOTION RECORD
+                <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                  <div
+                    className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${studentData.academicProgress}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                  <span>Class Attendance</span>
+                  <span className="text-emerald-400 font-semibold">{studentData.attendancePercentage}%</span>
+                </div>
+                <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                  <div
+                    className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${studentData.attendancePercentage}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-amber-400" /> Active Student Status
+            </span>
+            <span className="text-emerald-400 font-medium">Good Standing</span>
+          </div>
+        </div>
+
+        {/* Card 2: Tuition & Fee Ledger */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-white text-sm flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-400" /> Tuition &amp; Fee Status
+              </h2>
+              <span className={`text-xs px-2.5 py-0.5 rounded-full border font-medium ${getStatusBadge(studentData.feeStatus)}`}>
+                {studentData.feeStatus}
+              </span>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">Total Program Fee:</span>
+                <span className="font-mono text-white font-semibold">${studentData.feeAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">Paid to Date:</span>
+                <span className="font-mono text-emerald-400 font-semibold">${studentData.feePaid.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-800">
+                <span className="text-slate-300 font-medium">Remaining Balance:</span>
+                <span className="font-mono text-amber-400 font-bold">
+                  ${(studentData.feeAmount - studentData.feePaid).toLocaleString()}
                 </span>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div>Student: <strong className="text-white">{studentRecord.fullName}</strong></div>
-                <div>Roll No: <strong className="text-white">{studentRecord.rollNo}</strong></div>
-                <div>Course: <strong className="text-white">{studentRecord.course}</strong></div>
-                <div>Counselor: <strong className="text-white">{studentRecord.counselorName}</strong></div>
-                <div>Total Fee: <strong className="text-white">${studentRecord.feeAmount}</strong></div>
-                <div>Amount Paid: <strong className="text-emerald-400">${studentRecord.feePaid}</strong></div>
-              </div>
-
-              <div className="pt-2 text-[10px] text-slate-500 border-t border-slate-800 flex justify-between">
-                <span>Issued by Role-Based Portal Gateway</span>
-                <span>Date: {new Date().toISOString().split('T')[0]}</span>
-              </div>
             </div>
-          )}
+          </div>
 
+          <div className="mt-4 pt-3 flex items-center justify-between gap-2">
+            <div className="text-[11px] text-slate-400 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-slate-500" /> Due: {studentData.dueDate}
+            </div>
+            <button
+              onClick={handleDownloadReceipt}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-white rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5 text-indigo-400" />
+              {receiptDownloaded ? 'Receipt Saved' : 'Voucher'}
+            </button>
+          </div>
         </div>
 
-        {/* Assigned Counselor Contact Card (1 col) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <UserCheck className="w-5 h-5 text-indigo-400" />
-            My Assigned Counselor
-          </h2>
-
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 text-center space-y-3">
-            <div className="w-16 h-16 mx-auto rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-xl">
-              {studentRecord.counselorName.charAt(0)}
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-100 text-sm">{studentRecord.counselorName}</h3>
-              <p className="text-xs text-indigo-400 mt-0.5">Academic Adviser & Guide</p>
+        {/* Card 3: Assigned Counselor Contact */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-white text-sm flex items-center gap-2">
+                <User className="w-4 h-4 text-sky-400" /> Assigned Academic Counselor
+              </h2>
+              <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Faculty</span>
             </div>
 
-            <div className="pt-2 space-y-2 text-xs text-slate-400 text-left border-t border-slate-800/80">
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                <span className="truncate">counselor@school.edu</span>
+            <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 space-y-3">
+              <div>
+                <p className="font-semibold text-white text-sm">{studentData.counselorName}</p>
+                <p className="text-xs text-slate-400">Department of Student Affairs</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                <span>Office Hours: Mon - Fri (10 AM - 4 PM)</span>
+
+              <div className="space-y-1.5 text-xs text-slate-400 pt-2 border-t border-slate-800">
+                <p className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-slate-500" /> counselor@school.edu
+                </p>
+                <p className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-slate-500" /> Office Hours: 09:00 - 16:00 PKT
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Academic Stats */}
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-400">Course Attendance</span>
-              <span className="font-bold text-emerald-400">{studentRecord.attendancePercentage}%</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-400">Academic Score</span>
-              <span className="font-bold text-indigo-400">{studentRecord.academicProgress}%</span>
-            </div>
+          <div className="mt-4 pt-3 text-[11px] text-slate-500 flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Counselor notes are private to you &amp; faculty
           </div>
         </div>
-
       </div>
 
-      {/* Counseling Feedback Timeline */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-indigo-400" />
-          Counselor Advisory & Feedback Log
+      {/* Counselor Feedback & Progress Notes */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h2 className="font-semibold text-white text-sm flex items-center gap-2 mb-4">
+          <FileText className="w-4 h-4 text-indigo-400" /> Counselor Feedback &amp; Session Notes
         </h2>
-        <p className="text-xs text-slate-400">
-          Personal notes recorded by <span className="text-indigo-300 font-semibold">{studentRecord.counselorName}</span> regarding your academic journey and fee payment updates.
-        </p>
 
-        <div className="space-y-3 pt-2">
-          {studentRecord.counselorNotes.length === 0 ? (
-            <div className="p-6 bg-slate-950 rounded-2xl border border-slate-800 text-center text-xs text-slate-500">
-              No personal counseling notes logged yet.
-            </div>
-          ) : (
-            studentRecord.counselorNotes.map((note) => (
-              <div
-                key={note.id}
-                className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs text-slate-200 space-y-1.5"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-indigo-300">{note.authorName}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">{note.date}</span>
+        {studentData.counselorNotes.length === 0 ? (
+          <p className="text-xs text-slate-500 py-4 italic">No counselor notes recorded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {studentData.counselorNotes.map((note) => (
+              <div key={note.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="font-medium text-indigo-300">{note.authorName}</span>
+                  <span className="text-slate-500">{note.date}</span>
                 </div>
-                <p className="text-slate-300 leading-relaxed">{note.note}</p>
+                <p className="text-xs text-slate-300 leading-relaxed">{note.note}</p>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
-
     </div>
   );
 };
