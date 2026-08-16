@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User authentication and profile data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "counselor", "student"] }
+      },
+      "required": ["id", "email", "name", "role"]
+    },
+    "StudentRecord": {
+      "title": "Student Record",
+      "description": "Student profile, consulting progress, and applications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "rollNo": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "course": { "type": "string" },
+        "counselorId": { "type": "string" },
+        "counselorName": { "type": "string" },
+        "feeStatus": { "type": "string" },
+        "feeAmount": { "type": "number" },
+        "feePaid": { "type": "number" },
+        "academicProgress": { "type": "number" },
+        "attendancePercentage": { "type": "number" }
+      },
+      "required": ["id", "rollNo", "fullName", "email", "course"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/StudentRecord" },
+      "description": "Student records and consulting progress"
+    }
+  }
+}
