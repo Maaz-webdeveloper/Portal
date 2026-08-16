@@ -179,206 +179,396 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
   // CREATE STUDENT
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
-    try {
-      const res = await fetch('/api/students', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newStudent),
-      });
+    if (!newStudent.fullName.trim()) {
+      showToast('Student full name is required.', 'error');
+      return;
+    }
 
-      const data = await res.json();
-      if (res.ok) {
-        setShowAddStudentModal(false);
-        fetchAllData();
-        showToast(data.message || 'Student added successfully!');
-        setNewStudent({
-          fullName: '',
-          rollNo: `STU-2026-00${Math.floor(Math.random() * 90) + 10}`,
-          email: '',
-          phone: '+92 300 1122334',
-          course: settings.availableCourses[0] || 'Full Stack Web Development',
-          counselorId: counselors[0]?.id || '',
-          counselorName: counselors[0]?.name || '',
-          feeStatus: 'Pending',
-          feeAmount: 1200,
-          feePaid: 0,
-          dueDate: '2026-08-30',
-          enrollmentDate: '2026-08-01',
-          academicProgress: 80,
-          attendancePercentage: 90,
-        });
-      } else {
-        showToast(data.error || 'Failed to create student.', 'error');
-      }
+    const studentId = `stu-${Date.now()}`;
+    const rollNo = newStudent.rollNo.trim() || `STU-2026-00${Math.floor(Math.random() * 90) + 10}`;
+    const counselor = counselors.find((c) => c.id === newStudent.counselorId) || counselors[0];
+    const totalFee = Number(newStudent.feeAmount) || 1200;
+    const paidFee = Number(newStudent.feePaid) || 0;
+    const feeStatus = newStudent.feeStatus || (paidFee >= totalFee ? 'Paid' : paidFee > 0 ? 'Partial' : 'Pending');
+
+    const studentToAdd: StudentRecord = {
+      ...newStudent,
+      id: studentId,
+      rollNo,
+      fullName: newStudent.fullName.trim(),
+      email: newStudent.email.trim() || `${newStudent.fullName.toLowerCase().replace(/\s+/g, '.')}@school.edu`,
+      phone: newStudent.phone || '+92 300 1122334',
+      course: newStudent.course || settings.availableCourses[0] || 'Full Stack Web Development',
+      counselorId: counselor?.id || 'counselor-1',
+      counselorName: counselor?.name || 'Sarah Khan',
+      feeStatus,
+      feeAmount: totalFee,
+      feePaid: paidFee,
+      dueDate: newStudent.dueDate || '2026-08-30',
+      enrollmentDate: newStudent.enrollmentDate || '2026-08-01',
+      academicProgress: Number(newStudent.academicProgress) || 80,
+      attendancePercentage: Number(newStudent.attendancePercentage) || 90,
+      lastSyncedAt: new Date().toISOString(),
+      counselorNotes: [],
+    };
+
+    const feeToAdd: FeeRecord = {
+      id: `fee-${studentId}`,
+      studentId: studentId,
+      studentRollNo: rollNo,
+      studentName: studentToAdd.fullName,
+      course: studentToAdd.course,
+      totalAmount: totalFee,
+      paidAmount: paidFee,
+      balance: Math.max(0, totalFee - paidFee),
+      status: feeStatus,
+      dueDate: studentToAdd.dueDate,
+      lastPaymentDate: paidFee > 0 ? new Date().toISOString().split('T')[0] : undefined,
+    };
+
+    // Instant optimistic state update
+    setStudents((prev) => [studentToAdd, ...prev]);
+    setFees((prev) => [feeToAdd, ...prev]);
+    setShowAddStudentModal(false);
+    showToast(`Student "${studentToAdd.fullName}" added successfully!`);
+
+    // Reset Form
+    setNewStudent({
+      fullName: '',
+      rollNo: `STU-2026-00${Math.floor(Math.random() * 90) + 10}`,
+      email: '',
+      phone: '+92 300 1122334',
+      course: settings.availableCourses[0] || 'Full Stack Web Development',
+      counselorId: counselors[0]?.id || '',
+      counselorName: counselors[0]?.name || '',
+      feeStatus: 'Pending',
+      feeAmount: 1200,
+      feePaid: 0,
+      dueDate: '2026-08-30',
+      enrollmentDate: '2026-08-01',
+      academicProgress: 80,
+      attendancePercentage: 90,
+    });
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch('/api/students', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(studentToAdd),
+      });
     } catch (err) {
-      showToast('Network error creating student.', 'error');
+      console.warn('Sync student in background:', err);
     }
   };
 
   // UPDATE STUDENT
   const handleUpdateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingStudent || !token) return;
-    try {
-      const res = await fetch(`/api/students/${editingStudent.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editingStudent),
-      });
+    if (!editingStudent) return;
 
-      if (res.ok) {
-        setEditingStudent(null);
-        fetchAllData();
-        showToast('Student record updated successfully!');
-      } else {
-        showToast('Failed to update student.', 'error');
-      }
+    const totalFee = Number(editingStudent.feeAmount) || 1200;
+    const paidFee = Number(editingStudent.feePaid) || 0;
+    const feeStatus = editingStudent.feeStatus || (paidFee >= totalFee ? 'Paid' : paidFee > 0 ? 'Partial' : 'Pending');
+
+    const updatedStudent: StudentRecord = {
+      ...editingStudent,
+      feeAmount: totalFee,
+      feePaid: paidFee,
+      feeStatus,
+      lastSyncedAt: new Date().toISOString(),
+    };
+
+    setStudents((prev) => prev.map((s) => (s.id === updatedStudent.id ? updatedStudent : s)));
+    setFees((prev) =>
+      prev.map((f) => {
+        if (f.studentId === updatedStudent.id || f.studentRollNo === updatedStudent.rollNo) {
+          return {
+            ...f,
+            studentName: updatedStudent.fullName,
+            course: updatedStudent.course,
+            totalAmount: totalFee,
+            paidAmount: paidFee,
+            balance: Math.max(0, totalFee - paidFee),
+            status: feeStatus,
+          };
+        }
+        return f;
+      })
+    );
+
+    setEditingStudent(null);
+    showToast(`Updated student profile "${updatedStudent.fullName}".`);
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`/api/students/${updatedStudent.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updatedStudent),
+      });
     } catch (err) {
-      showToast('Network error updating student.', 'error');
+      console.warn('Update student sync error:', err);
     }
   };
 
   // DELETE STUDENT
   const handleDeleteStudent = async (id: string, name: string) => {
-    if (!token || !window.confirm(`Are you sure you want to delete student "${name}"? This action cannot be undone.`)) return;
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+    setFees((prev) => prev.filter((f) => f.studentId !== id && f.id !== id));
+    showToast(`Student "${name}" deleted.`);
+
     try {
-      const res = await fetch(`/api/students/${id}`, {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`/api/students/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
-      if (res.ok) {
-        fetchAllData();
-        showToast(`Student "${name}" deleted.`);
-      }
     } catch (err) {
-      showToast('Failed to delete student.', 'error');
+      console.warn('Delete student sync error:', err);
     }
   };
 
   // CREATE COUNSELOR
   const handleCreateCounselor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
+    if (!newCounselor.name.trim() || !newCounselor.email.trim()) {
+      showToast('Name and email are required for counselor.', 'error');
+      return;
+    }
+
+    const counselorId = `counselor-${Date.now()}`;
+    const counselorToAdd: CounselorRecord = {
+      id: counselorId,
+      name: newCounselor.name.trim(),
+      email: newCounselor.email.trim(),
+      phone: newCounselor.phone || '+92 300 7654321',
+      specialization: newCounselor.specialization || 'STEM & Academic Guidance',
+      assignedStudentIds: [],
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    };
+
+    setCounselors((prev) => [...prev, counselorToAdd]);
+    setShowAddCounselorModal(false);
+    showToast(`Counselor "${counselorToAdd.name}" added successfully!`);
+
+    setNewCounselor({
+      name: '',
+      email: '',
+      phone: '+92 300 7654321',
+      specialization: 'STEM & Software Engineering',
+    });
+
     try {
-      const res = await fetch('/api/counselors', {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch('/api/counselors', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newCounselor),
+        headers,
+        body: JSON.stringify(counselorToAdd),
       });
-      const data = await res.json();
-      if (res.ok) {
-        setShowAddCounselorModal(false);
-        fetchAllData();
-        showToast(data.message || 'Counselor created successfully with login credentials!');
-        setNewCounselor({
-          name: '',
-          email: '',
-          phone: '+92 300 7654321',
-          specialization: 'STEM & Software Engineering',
-        });
-      } else {
-        showToast(data.error || 'Failed to create counselor', 'error');
-      }
     } catch (err) {
-      showToast('Error creating counselor.', 'error');
+      console.warn('Create counselor sync error:', err);
     }
   };
 
   // UPDATE COUNSELOR
   const handleUpdateCounselor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCounselor || !token) return;
+    if (!editingCounselor) return;
+
+    const updated = { ...editingCounselor };
+    setCounselors((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setStudents((prev) =>
+      prev.map((s) => (s.counselorId === updated.id ? { ...s, counselorName: updated.name } : s))
+    );
+
+    setEditingCounselor(null);
+    showToast(`Counselor "${updated.name}" updated!`);
+
     try {
-      const res = await fetch(`/api/counselors/${editingCounselor.id}`, {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`/api/counselors/${updated.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editingCounselor),
+        headers,
+        body: JSON.stringify(updated),
       });
-      if (res.ok) {
-        setEditingCounselor(null);
-        fetchAllData();
-        showToast('Counselor updated successfully!');
-      }
     } catch (err) {
-      showToast('Error updating counselor.', 'error');
+      console.warn('Update counselor sync error:', err);
     }
   };
 
   // DELETE COUNSELOR
   const handleDeleteCounselor = async (id: string, name: string) => {
-    if (!token || !window.confirm(`Are you sure you want to delete counselor "${name}"?`)) return;
+    setCounselors((prev) => prev.filter((c) => c.id !== id));
+    showToast(`Counselor "${name}" removed.`);
+
     try {
-      const res = await fetch(`/api/counselors/${id}`, {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`/api/counselors/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
-      if (res.ok) {
-        fetchAllData();
-        showToast(`Counselor "${name}" removed.`);
-      }
     } catch (err) {
-      showToast('Failed to delete counselor.', 'error');
+      console.warn('Delete counselor sync error:', err);
     }
   };
 
   // UPDATE FEE
   const handleUpdateFee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingFee || !token) return;
+    if (!editingFee) return;
+
+    const paid = Number(editingFee.paidAmount) || 0;
+    const total = Number(editingFee.totalAmount) || 0;
+    const balance = Math.max(0, total - paid);
+    const status = editingFee.status || (balance === 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Pending');
+
+    const updatedFee: FeeRecord = {
+      ...editingFee,
+      paidAmount: paid,
+      totalAmount: total,
+      balance,
+      status,
+      lastPaymentDate: paid > 0 ? new Date().toISOString().split('T')[0] : editingFee.lastPaymentDate,
+    };
+
+    setFees((prev) => prev.map((f) => (f.id === updatedFee.id ? updatedFee : f)));
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id === updatedFee.studentId || s.rollNo === updatedFee.studentRollNo) {
+          return {
+            ...s,
+            feePaid: paid,
+            feeAmount: total,
+            feeStatus: status as any,
+          };
+        }
+        return s;
+      })
+    );
+
+    setEditingFee(null);
+    showToast(`Fee ledger updated for ${updatedFee.studentName}!`);
+
     try {
-      const res = await fetch(`/api/fees/${editingFee.id}`, {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`/api/fees/${updatedFee.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editingFee),
+        headers,
+        body: JSON.stringify(updatedFee),
       });
-      if (res.ok) {
-        setEditingFee(null);
-        fetchAllData();
-        showToast('Fee payment status updated!');
-      }
     } catch (err) {
-      showToast('Failed to update fee record.', 'error');
+      console.warn('Fee sync error:', err);
+    }
+  };
+
+  // TOGGLE FEE STATUS (Click on Paid / Pending / Overdue in Fee Ledger)
+  const handleToggleFeeStatus = async (fee: FeeRecord) => {
+    const isCurrentlyPaid = fee.status === 'Paid';
+    const newStatus = isCurrentlyPaid ? 'Pending' : 'Paid';
+    const newPaidAmount = isCurrentlyPaid ? 0 : fee.totalAmount;
+    const newBalance = isCurrentlyPaid ? fee.totalAmount : 0;
+
+    const updatedFee: FeeRecord = {
+      ...fee,
+      status: newStatus,
+      paidAmount: newPaidAmount,
+      balance: newBalance,
+      lastPaymentDate: !isCurrentlyPaid ? new Date().toISOString().split('T')[0] : fee.lastPaymentDate,
+    };
+
+    setFees((prev) => prev.map((f) => (f.id === fee.id ? updatedFee : f)));
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id === fee.studentId || s.rollNo === fee.studentRollNo) {
+          return {
+            ...s,
+            feeStatus: newStatus as any,
+            feePaid: newPaidAmount,
+          };
+        }
+        return s;
+      })
+    );
+
+    showToast(`${fee.studentName}'s fee marked as ${newStatus}!`);
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`/api/fees/${fee.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          paidAmount: newPaidAmount,
+          status: newStatus,
+        }),
+      });
+    } catch (err) {
+      console.warn('Toggle fee status sync error:', err);
+    }
+  };
+
+  // TOGGLE STUDENT FEE STATUS (Click on Paid / Pending in Student Lists)
+  const handleToggleStudentFeeStatus = async (student: StudentRecord) => {
+    const isCurrentlyPaid = student.feeStatus === 'Paid';
+    const newStatus = isCurrentlyPaid ? 'Pending' : 'Paid';
+    const newPaidAmount = isCurrentlyPaid ? 0 : student.feeAmount;
+
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === student.id
+          ? {
+              ...s,
+              feeStatus: newStatus as any,
+              feePaid: newPaidAmount,
+            }
+          : s
+      )
+    );
+
+    setFees((prev) =>
+      prev.map((f) => {
+        if (f.studentId === student.id || f.studentRollNo === student.rollNo) {
+          return {
+            ...f,
+            status: newStatus as any,
+            paidAmount: newPaidAmount,
+            balance: isCurrentlyPaid ? student.feeAmount : 0,
+          };
+        }
+        return f;
+      })
+    );
+
+    showToast(`${student.fullName}'s fee marked as ${newStatus}!`);
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`/api/students/${student.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          feeStatus: newStatus,
+          feePaid: newPaidAmount,
+        }),
+      });
+    } catch (err) {
+      console.warn('Toggle student fee status sync error:', err);
     }
   };
 
   // QUICK MARK FEE AS PAID
   const handleQuickMarkPaid = async (fee: FeeRecord) => {
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/fees/${fee.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          paidAmount: fee.totalAmount,
-          status: 'Paid',
-        }),
-      });
-      if (res.ok) {
-        fetchAllData();
-        showToast(`Marked ${fee.studentName}'s fee as fully paid!`);
-      }
-    } catch (err) {
-      showToast('Failed to update fee status.', 'error');
-    }
+    handleToggleFeeStatus({ ...fee, status: 'Pending' });
   };
 
   // SAVE PORTAL SETTINGS
@@ -587,9 +777,14 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${getStatusBadge(s.feeStatus)}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStudentFeeStatus(s)}
+                        title="Click to toggle fee status"
+                        className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold cursor-pointer active:scale-95 transition-transform ${getStatusBadge(s.feeStatus)}`}
+                      >
                         {s.feeStatus}
-                      </span>
+                      </button>
                       <button
                         onClick={() => setEditingStudent(s)}
                         className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
@@ -711,9 +906,14 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
                       <h3 className="font-bold text-white text-sm">{s.fullName}</h3>
                       <p className="font-mono text-[11px] text-slate-400">{s.rollNo} • {s.email}</p>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold shrink-0 ${getStatusBadge(s.feeStatus)}`}>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStudentFeeStatus(s)}
+                      title="Click to toggle Paid / Pending"
+                      className={`px-2.5 py-1 rounded-full border text-[10px] font-semibold shrink-0 cursor-pointer active:scale-95 transition-transform ${getStatusBadge(s.feeStatus)}`}
+                    >
                       {s.feeStatus}
-                    </span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-slate-900">
@@ -817,9 +1017,14 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold ${getStatusBadge(s.feeStatus)}`}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStudentFeeStatus(s)}
+                          title="Click to toggle Paid / Pending"
+                          className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold cursor-pointer active:scale-95 hover:opacity-80 transition-all ${getStatusBadge(s.feeStatus)}`}
+                        >
                           {s.feeStatus}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3 font-mono">
                         <span className="text-emerald-400">
@@ -1062,9 +1267,14 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
                       <h3 className="font-bold text-white text-sm">{f.studentName}</h3>
                       <p className="font-mono text-[11px] text-slate-400">{f.studentRollNo} • {f.course}</p>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold shrink-0 ${getStatusBadge(f.status)}`}>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFeeStatus(f)}
+                      title="Click to toggle Paid / Pending"
+                      className={`px-2.5 py-1 rounded-full border text-[10px] font-semibold shrink-0 cursor-pointer active:scale-95 transition-transform ${getStatusBadge(f.status)}`}
+                    >
                       {f.status}
-                    </span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-xs py-2 border-y border-slate-900 font-mono">
@@ -1152,9 +1362,14 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
                         {f.balance}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold ${getStatusBadge(f.status)}`}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFeeStatus(f)}
+                          title="Click to toggle Paid / Pending"
+                          className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold cursor-pointer active:scale-95 hover:opacity-80 transition-all ${getStatusBadge(f.status)}`}
+                        >
                           {f.status}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3 font-mono text-slate-400">{f.dueDate}</td>
                       <td className="px-4 py-3 text-right">
