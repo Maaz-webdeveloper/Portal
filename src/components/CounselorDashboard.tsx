@@ -186,11 +186,45 @@ export const CounselorDashboard: React.FC<Props> = ({ activeTab = 'overview' }) 
 
       {/* Cohort Fees Tab View */}
       {activeTab === 'fees' ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-emerald-400" /> Assigned Cohort Fee Status
           </h2>
-          <div className="overflow-x-auto rounded-2xl border border-slate-800">
+
+          {/* Mobile Card List (< md) */}
+          <div className="md:hidden space-y-3">
+            {fees.map((f) => (
+              <div key={f.id} className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-white text-sm">{f.studentName}</h3>
+                    <p className="font-mono text-[11px] text-slate-400">{f.studentRollNo} • {f.course}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold shrink-0 ${getStatusBadge(f.status)}`}>
+                    {f.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs py-2 border-t border-slate-900 font-mono">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block font-sans">Total</span>
+                    <span className="text-white font-semibold text-[11px]">${f.totalAmount}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block font-sans">Paid</span>
+                    <span className="text-emerald-400 font-semibold text-[11px]">${f.paidAmount}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block font-sans">Balance</span>
+                    <span className="text-amber-400 font-semibold text-[11px]">${f.balance}</span>
+                  </div>
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono">Due: {f.dueDate}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
                 <tr>

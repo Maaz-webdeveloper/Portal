@@ -51,7 +51,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar
         onOpenNotionModal={() => setShowNotionModal(true)}
         onOpenJwtInspector={() => setShowJwtInspector(true)}
@@ -63,7 +63,7 @@ const AppContent: React.FC = () => {
         setActiveTab={setActiveTab}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden min-w-0">
         {user.role === 'student' && <StudentDashboard />}
         {user.role === 'counselor' && <CounselorDashboard activeTab={activeTab} />}
         {user.role === 'admin' && (

@@ -80,15 +80,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const BadgeIcon = badge.icon;
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
+    <header className="sticky top-0 z-40 w-full max-w-full bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100 shadow-sm overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 w-full">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-3 w-full min-w-0">
           {/* Zone 1: Brand Title (Clean, single-line, no left arrow) */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-indigo-600/30">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-indigo-600/30 shrink-0">
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="font-bold text-white text-base tracking-tight whitespace-nowrap">
+            <span className="font-bold text-white text-xs sm:text-base tracking-tight whitespace-nowrap">
               Notion Portal
             </span>
           </div>
@@ -191,17 +191,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Zone 3: Direct Actions (Notion Button, Sync, JWT, Role Switcher, Logout) */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Direct Notion Modal Trigger Button */}
             <button
               onClick={onOpenNotionModal}
               title="Configure Notion Database Integration"
-              className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-colors flex items-center gap-1.5"
+              className="px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-colors flex items-center gap-1.5 shrink-0"
             >
-              <Database className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden sm:inline font-semibold">Notion Setup</span>
+              <Database className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="hidden sm:inline font-semibold">Notion</span>
               <span
-                className={`w-2 h-2 rounded-full ${
+                className={`w-2 h-2 rounded-full shrink-0 ${
                   notionConnected ? 'bg-emerald-400 ring-2 ring-emerald-500/20' : 'bg-amber-400'
                 }`}
               />
@@ -212,7 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={onSyncNotion}
               disabled={isSyncing}
               title="Sync / Refresh Data"
-              className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 transition-colors border border-slate-700/50 flex items-center gap-1.5 text-xs"
+              className="p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 transition-colors border border-slate-700/50 flex items-center gap-1.5 text-xs shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-400' : ''}`} />
               <span className="hidden xl:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
@@ -222,26 +222,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenJwtInspector}
               title="Inspect Active JWT Token & Role Claims"
-              className="p-2 text-amber-400 hover:text-amber-300 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-colors text-xs flex items-center gap-1"
+              className="p-1.5 sm:p-2 text-amber-400 hover:text-amber-300 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-colors text-xs flex items-center gap-1 shrink-0"
             >
               <Key className="w-3.5 h-3.5" />
               <span className="hidden lg:inline font-mono font-semibold">JWT</span>
             </button>
 
             {/* Quick Switch Test Role Dropdown */}
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative shrink-0" ref={dropdownRef}>
               <button
                 onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-sm ${badge.bg}`}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-sm ${badge.bg}`}
                 title="Switch between Admin, Counselor, and Student test views"
               >
                 <BadgeIcon className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate max-w-[120px]">{badge.label}</span>
-                <ChevronDown className={`w-3.5 h-3.5 opacity-70 transition-transform ${roleDropdownOpen ? 'rotate-180' : ''}`} />
+                <span className="truncate max-w-[65px] xs:max-w-[90px] sm:max-w-[120px]">{badge.label}</span>
+                <ChevronDown className={`w-3.5 h-3.5 opacity-70 transition-transform shrink-0 ${roleDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {roleDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-fadeIn max-h-[80vh] overflow-y-auto">
+                <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-fadeIn max-h-[80vh] overflow-y-auto">
                   <div className="px-3.5 py-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between border-b border-slate-800 mb-1">
                     <span>Switch Test Role / Portal</span>
                     <span className="text-emerald-400 text-[9px] font-mono">Live Demo</span>
@@ -405,11 +405,108 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={logout}
               title="Sign Out"
-              className="p-2 text-slate-400 hover:text-rose-400 rounded-xl hover:bg-slate-800 transition-colors"
+              className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-400 rounded-xl hover:bg-slate-800 transition-colors shrink-0"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+        </div>
+
+        {/* Mobile Navigation Strip (Visible on mobile & tablet < md) */}
+        <div className="md:hidden py-2 px-1 border-t border-slate-800/60 overflow-x-auto touch-scroll-x no-scrollbar flex items-center gap-1.5 text-xs w-full min-w-0">
+          {user?.role === 'admin' && (
+            <>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                  activeTab === 'overview'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('students')}
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                  activeTab === 'students'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                All Students
+              </button>
+              <button
+                onClick={() => setActiveTab('counselors')}
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                  activeTab === 'counselors'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                Counselors
+              </button>
+              <button
+                onClick={() => setActiveTab('fees')}
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                  activeTab === 'fees'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                Fee Ledger
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors shrink-0 flex items-center gap-1 ${
+                  activeTab === 'settings'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <Settings className="w-3 h-3" />
+                <span>Settings</span>
+              </button>
+            </>
+          )}
+
+          {user?.role === 'counselor' && (
+            <>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                  activeTab === 'overview'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                Assigned Cohort
+              </button>
+              <button
+                onClick={() => setActiveTab('fees')}
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                  activeTab === 'fees'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                Cohort Fees
+              </button>
+            </>
+          )}
+
+          {user?.role === 'student' && (
+            <div className="px-2.5 py-1 bg-sky-500/10 border border-sky-500/20 text-sky-300 rounded-xl text-[11px] font-mono shrink-0">
+              Student: {user.name} ({user.studentRollNo || 'STU-001'})
+            </div>
+          )}
+
+          <button
+            onClick={onOpenArchitecture}
+            className="px-3 py-1.5 rounded-xl font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40 whitespace-nowrap transition-colors shrink-0 ml-auto"
+          >
+            RBAC Flow
+          </button>
         </div>
       </div>
     </header>
