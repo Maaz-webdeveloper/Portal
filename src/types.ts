@@ -51,7 +51,7 @@ export interface CounselorRecord {
   phone: string;
   specialization: string;
   assignedStudentIds: string[];
-  avatar: string;
+  avatar?: string;
 }
 
 export interface FeeRecord {
@@ -77,4 +77,15 @@ export interface NotionConfig {
   isConnected: boolean;
   lastSyncTime: string | null;
   mode: 'live' | 'mock';
+}
+
+export interface SystemSettings {
+  portalName: string;
+  institutionName: string;
+  academicTerm: string;
+  supportEmail: string;
+  currencySymbol: string;
+  availableCourses: string[];
+  allowStudentFeeDownload: boolean;
+  lastUpdated: string;
 }

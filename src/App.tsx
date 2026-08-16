@@ -11,7 +11,7 @@ import { JwtInspectorModal } from './components/JwtInspectorModal';
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'counselors' | 'fees' | 'notion'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion'>('overview');
   const [showNotionModal, setShowNotionModal] = useState(false);
   const [showArchitectureModal, setShowArchitectureModal] = useState(false);
   const [showJwtInspector, setShowJwtInspector] = useState(false);
@@ -51,7 +51,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar
         onOpenNotionModal={() => setShowNotionModal(true)}
         onOpenJwtInspector={() => setShowJwtInspector(true)}
@@ -65,7 +65,7 @@ const AppContent: React.FC = () => {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {user.role === 'student' && <StudentDashboard />}
-        {user.role === 'counselor' && <CounselorDashboard />}
+        {user.role === 'counselor' && <CounselorDashboard activeTab={activeTab} />}
         {user.role === 'admin' && (
           <AdminDashboard
             activeTab={activeTab}

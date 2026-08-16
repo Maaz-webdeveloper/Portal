@@ -12,7 +12,8 @@ import {
   UserCheck, 
   BookOpen, 
   Plus, 
-  Send 
+  Send,
+  ArrowLeft
 } from 'lucide-react';
 
 interface StudentDetailModalProps {
@@ -56,13 +57,21 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
         
         {/* Header Banner */}
         <div className="bg-slate-950 px-6 py-5 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-xl">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs font-semibold"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-lg">
               {student.fullName.charAt(0)}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-lg text-white">{student.fullName}</h3>
+                <h3 className="font-extrabold text-base sm:text-lg text-white">{student.fullName}</h3>
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                   {student.rollNo}
                 </span>

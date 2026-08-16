@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { StudentRecord, FeeRecord } from '../types';
+import { INITIAL_STUDENTS, INITIAL_FEES } from '../data/mockData';
 import {
   GraduationCap,
   Calendar,
@@ -16,10 +17,12 @@ import {
   Award,
   Download,
   ShieldAlert,
+  ArrowLeft,
+  Shield,
 } from 'lucide-react';
 
 export const StudentDashboard: React.FC = () => {
-  const { user, token } = useAuth();
+  const { user, token, switchRoleQuick } = useAuth();
   const [studentData, setStudentData] = useState<StudentRecord | null>(null);
   const [feeRecord, setFeeRecord] = useState<FeeRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,28 +33,60 @@ export const StudentDashboard: React.FC = () => {
   }, [user]);
 
   const fetchStudentData = async () => {
-    if (!token) return;
     setLoading(true);
     try {
-      // 1. Fetch Student details (Filtered strictly by JWT on backend)
-      const res = await fetch('/api/students', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.students && data.students.length > 0) {
-        setStudentData(data.students[0]);
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const [stuRes, feeRes] = await Promise.allSettled([
+        fetch('/api/students', { headers }),
+        fetch('/api/fees', { headers }),
+      ]);
+
+      let foundStudent: StudentRecord | null = null;
+      let foundFee: FeeRecord | null = null;
+
+      if (stuRes.status === 'fulfilled' && stuRes.value.ok) {
+        const data = await stuRes.value.json();
+        if (data.students && data.students.length > 0) {
+          foundStudent = data.students[0];
+        }
       }
 
-      // 2. Fetch Fee details (Filtered strictly by JWT on backend)
-      const feeRes = await fetch('/api/fees', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const feeData = await feeRes.json();
-      if (feeData.fees && feeData.fees.length > 0) {
-        setFeeRecord(feeData.fees[0]);
+      if (feeRes.status === 'fulfilled' && feeRes.value.ok) {
+        const feeData = await feeRes.value.json();
+        if (feeData.fees && feeData.fees.length > 0) {
+          foundFee = feeData.fees[0];
+        }
       }
+
+      // Fallback matching if server is offline or returned empty
+      if (!foundStudent) {
+        const fallback =
+          INITIAL_STUDENTS.find(
+            (s) =>
+              (user?.studentRollNo && s.rollNo === user.studentRollNo) ||
+              (user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+              (user?.linkedProfileId && s.id === user.linkedProfileId)
+          ) || INITIAL_STUDENTS[0];
+        foundStudent = fallback;
+      }
+
+      if (!foundFee && foundStudent) {
+        foundFee = INITIAL_FEES.find((f) => f.studentId === foundStudent!.id) || INITIAL_FEES[0];
+      }
+
+      setStudentData(foundStudent);
+      setFeeRecord(foundFee);
     } catch (e) {
-      console.error('Error fetching student data', e);
+      console.warn('Network issue fetching student data, using local store:', e);
+      const fallback =
+        INITIAL_STUDENTS.find(
+          (s) =>
+            (user?.studentRollNo && s.rollNo === user.studentRollNo) ||
+            (user?.email && s.email.toLowerCase() === user.email.toLowerCase())
+        ) || INITIAL_STUDENTS[0];
+      setStudentData(fallback);
+      setFeeRecord(INITIAL_FEES.find((f) => f.studentId === fallback.id) || INITIAL_FEES[0]);
     } finally {
       setLoading(false);
     }
@@ -97,7 +132,24 @@ export const StudentDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* Top Demo Navigation Bar with Back Arrow */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg">
+        <button
+          onClick={() => switchRoleQuick('admin')}
+          className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/30 group cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+          <span>← Back to Admin Portal (Super View)</span>
+        </button>
+
+        <div className="flex items-center gap-2 text-slate-300 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+          <Shield className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="hidden sm:inline text-slate-400">Current Isolated Student:</span>
+          <span className="font-mono text-white font-semibold">{studentData.rollNo} ({studentData.fullName})</span>
+        </div>
+      </div>
+
       {/* Student Welcome Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">

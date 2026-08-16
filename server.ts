@@ -5,22 +5,50 @@ import { Client } from '@notionhq/client';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { INITIAL_STUDENTS, INITIAL_COUNSELORS, INITIAL_USERS, INITIAL_FEES } from './src/data/mockData';
-import { StudentRecord, NotionConfig, FeeRecord, User } from './src/types';
+import { StudentRecord, NotionConfig, FeeRecord, User, CounselorRecord, SystemSettings } from './src/types';
 
 const app = express();
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'portal-jwt-secret-notion-rbac-2026-superkey';
 
+// CORS & Security Headers Middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json());
 
-// In-memory data store for live & mock sync
+// In-memory persistent data store
 let studentsStore: StudentRecord[] = [...INITIAL_STUDENTS];
-let counselorsStore = [...INITIAL_COUNSELORS];
+let counselorsStore: CounselorRecord[] = [...INITIAL_COUNSELORS];
 let usersStore = INITIAL_USERS.map((u) => ({
   ...u,
   passwordHash: bcrypt.hashSync(u.plainPassword || 'password123', 8),
 }));
 let feesStore: FeeRecord[] = [...INITIAL_FEES];
+
+let systemSettings: SystemSettings = {
+  portalName: 'Notion Student Portal',
+  institutionName: 'Apex Institute of Technology & Management',
+  academicTerm: 'Fall 2026 Semester',
+  supportEmail: 'admissions@school.edu',
+  currencySymbol: '$',
+  availableCourses: [
+    'Full Stack Web Development',
+    'UI/UX Design Systems',
+    'Data Science & Machine Learning',
+    'Cyber Security Essentials',
+    'Cloud Architecture & DevOps',
+  ],
+  allowStudentFeeDownload: true,
+  lastUpdated: new Date().toISOString(),
+};
 
 let notionConfig: NotionConfig = {
   apiKey: process.env.NOTION_API_KEY || '',
@@ -33,26 +61,44 @@ let notionConfig: NotionConfig = {
   mode: process.env.NOTION_API_KEY ? 'live' : 'mock',
 };
 
-// Test Notion Connection helper
-async function checkNotionConnection(apiKey: string, databaseId: string): Promise<boolean> {
-  if (!apiKey || !databaseId) return false;
+// Test Notion Connection helper with detailed error reporting
+async function checkNotionConnection(apiKey: string, databaseId: string): Promise<{ success: boolean; message: string }> {
+  if (!apiKey) {
+    return { success: false, message: 'Notion Internal Integration Token (secret_...) is required.' };
+  }
+  if (!databaseId) {
+    return { success: false, message: 'Students Database ID (32-character) is required.' };
+  }
+
+  // Clean formatted ID if URL was pasted
+  const cleanDbId = databaseId.replace(/-/g, '').trim();
+
   try {
-    const notion = new Client({ auth: apiKey }) as any;
-    await notion.databases.retrieve({ database_id: databaseId });
-    return true;
-  } catch (error) {
+    const notion = new Client({ auth: apiKey.trim() }) as any;
+    const response = await notion.databases.retrieve({ database_id: cleanDbId });
+    return {
+      success: true,
+      message: `Successfully connected to Notion Database: "${response.title?.[0]?.plain_text || 'Database'}"!`,
+    };
+  } catch (error: any) {
     console.error('Notion Connection Error:', error);
-    return false;
+    let errMsg = error?.message || 'Could not connect to Notion API.';
+    if (error?.status === 401) {
+      errMsg = 'Invalid Notion Token. Please check that your secret starts with secret_... and is copied correctly.';
+    } else if (error?.status === 404) {
+      errMsg = 'Database not found or not shared. Make sure to open your Notion database page, click "..." -> "Add connections" -> select your integration!';
+    }
+    return { success: false, message: errMsg };
   }
 }
 
 // Initial connection test if env vars present
 if (notionConfig.apiKey && notionConfig.studentsDatabaseId) {
-  checkNotionConnection(notionConfig.apiKey, notionConfig.studentsDatabaseId).then((connected) => {
-    notionConfig.isConnected = connected;
-    if (connected) {
+  checkNotionConnection(notionConfig.apiKey, notionConfig.studentsDatabaseId).then((res) => {
+    notionConfig.isConnected = res.success;
+    if (res.success) {
       notionConfig.lastSyncTime = new Date().toISOString();
-      console.log('Successfully connected to Notion API!');
+      console.log('Successfully connected to Notion API at startup!');
     }
   });
 }
@@ -110,6 +156,20 @@ function authorizeRole(allowedRoles: ('admin' | 'counselor' | 'student')[]) {
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// SYSTEM SETTINGS (Self-service for Admin)
+app.get('/api/settings', (_req, res) => {
+  res.json({ settings: systemSettings });
+});
+
+app.post('/api/settings', authenticateToken, authorizeRole(['admin']), (req: AuthenticatedRequest, res) => {
+  systemSettings = {
+    ...systemSettings,
+    ...req.body,
+    lastUpdated: new Date().toISOString(),
+  };
+  res.json({ success: true, settings: systemSettings, message: 'Settings saved successfully!' });
 });
 
 // AUTH: Login with Email & Password
@@ -193,7 +253,7 @@ app.get('/api/notion/config', (_req, res) => {
     isConnected: notionConfig.isConnected,
     lastSyncTime: notionConfig.lastSyncTime,
     mode: notionConfig.mode,
-    maskedApiKey: notionConfig.apiKey ? `${notionConfig.apiKey.slice(0, 7)}...` : '',
+    maskedApiKey: notionConfig.apiKey ? `${notionConfig.apiKey.slice(0, 10)}...` : '',
     usersDatabaseId: notionConfig.usersDatabaseId,
     studentsDatabaseId: notionConfig.studentsDatabaseId,
     counselorsDatabaseId: notionConfig.counselorsDatabaseId,
@@ -215,14 +275,14 @@ app.post('/api/notion/config', async (req, res) => {
   if (mode === 'mock') {
     notionConfig.mode = 'mock';
     notionConfig.isConnected = false;
-    return res.json({ success: true, message: 'Switched to local simulated Notion mode.', config: notionConfig });
+    return res.json({ success: true, message: 'Switched to simulated Notion mode.', config: notionConfig });
   }
 
   const keyToUse = apiKey || notionConfig.apiKey;
   const dbToUse = studentsDatabaseId || notionConfig.studentsDatabaseId;
 
-  const connected = await checkNotionConnection(keyToUse, dbToUse);
-  if (connected) {
+  const result = await checkNotionConnection(keyToUse, dbToUse);
+  if (result.success) {
     notionConfig.apiKey = keyToUse;
     notionConfig.studentsDatabaseId = dbToUse;
     if (usersDatabaseId) notionConfig.usersDatabaseId = usersDatabaseId;
@@ -231,11 +291,11 @@ app.post('/api/notion/config', async (req, res) => {
     notionConfig.isConnected = true;
     notionConfig.mode = 'live';
     notionConfig.lastSyncTime = new Date().toISOString();
-    return res.json({ success: true, message: 'Connected to Notion successfully!', isConnected: true });
+    return res.json({ success: true, message: result.message, isConnected: true, config: notionConfig });
   } else {
     return res.status(400).json({
       success: false,
-      message: 'Could not connect to Notion API. Please verify Token and Database ID permissions.',
+      message: result.message,
     });
   }
 });
@@ -246,7 +306,7 @@ app.post('/api/notion/sync', async (_req, res) => {
     notionConfig.lastSyncTime = new Date().toISOString();
     return res.json({
       success: true,
-      message: 'Simulated sync complete (using 4 linked role-filtered databases).',
+      message: 'Simulated sync complete (using 4 linked databases with server-side filters).',
       lastSyncTime: notionConfig.lastSyncTime,
       count: studentsStore.length,
     });
@@ -254,8 +314,9 @@ app.post('/api/notion/sync', async (_req, res) => {
 
   try {
     const notion = new Client({ auth: notionConfig.apiKey }) as any;
+    const cleanDbId = notionConfig.studentsDatabaseId.replace(/-/g, '').trim();
     const response = await notion.databases.query({
-      database_id: notionConfig.studentsDatabaseId,
+      database_id: cleanDbId,
     });
 
     const fetchedStudents: StudentRecord[] = response.results.map((page: any, index: number) => {
@@ -273,14 +334,14 @@ app.post('/api/notion/sync', async (_req, res) => {
           'Student Name',
         email: props['Email']?.email || props['Email']?.rich_text?.[0]?.plain_text || 'student@school.edu',
         phone: props['Phone']?.phone_number || props['Phone']?.rich_text?.[0]?.plain_text || '+92 300 0000000',
-        course: props['Course']?.select?.name || props['Course']?.rich_text?.[0]?.plain_text || 'Web Development',
+        course: props['Course']?.select?.name || props['Course']?.rich_text?.[0]?.plain_text || 'Full Stack Web Development',
         counselorId: props['Counselor ID']?.rich_text?.[0]?.plain_text || 'counselor-1',
         counselorName:
           props['Counselor Name']?.select?.name ||
           props['Counselor Name']?.rich_text?.[0]?.plain_text ||
           'Sarah Khan',
         feeStatus: (props['Fee Status']?.select?.name as any) || 'Pending',
-        feeAmount: props['Fee Amount']?.number || 1000,
+        feeAmount: props['Fee Amount']?.number || 1200,
         feePaid: props['Fee Paid']?.number || 0,
         dueDate: props['Due Date']?.date?.start || '2026-08-30',
         enrollmentDate: props['Enrollment Date']?.date?.start || '2026-01-01',
@@ -293,7 +354,6 @@ app.post('/api/notion/sync', async (_req, res) => {
 
     if (fetchedStudents.length > 0) {
       studentsStore = fetchedStudents;
-      // Refresh fee store as well
       feesStore = studentsStore.map((s) => ({
         id: `fee-${s.id}`,
         studentId: s.id,
@@ -311,7 +371,7 @@ app.post('/api/notion/sync', async (_req, res) => {
 
     return res.json({
       success: true,
-      message: `Synced ${fetchedStudents.length} student records directly from Notion!`,
+      message: `Synced ${fetchedStudents.length} student records directly from live Notion!`,
       lastSyncTime: notionConfig.lastSyncTime,
       count: fetchedStudents.length,
     });
@@ -322,16 +382,12 @@ app.post('/api/notion/sync', async (_req, res) => {
 });
 
 // ==================== ROLE-BASED ACCESS CONTROL (RBAC) API ENDPOINTS ====================
-// Exactly matching Page 3 & 4 of PDF:
-// Critical rule: filtering happens inside the Express route handler using the role decoded
-// from the verified JWT — never trusting frontend request params!
 
-// GET /api/students
+// GET /api/students (Role-based filtering inside Express)
 app.get('/api/students', authenticateToken, (req: AuthenticatedRequest, res) => {
   const user = req.user!;
-  
+
   if (user.role === 'admin') {
-    // Level 1 Admin: No filter applied, sees all students
     return res.json({
       role: user.role,
       recordsCount: studentsStore.length,
@@ -341,7 +397,6 @@ app.get('/api/students', authenticateToken, (req: AuthenticatedRequest, res) => 
   }
 
   if (user.role === 'counselor') {
-    // Level 2 Counselor: Filter Assigned Counselor relation = their own user/counselor ID
     const counselorScoped = studentsStore.filter((s) => s.counselorId === user.counselorId);
     return res.json({
       role: user.role,
@@ -353,7 +408,6 @@ app.get('/api/students', authenticateToken, (req: AuthenticatedRequest, res) => 
   }
 
   if (user.role === 'student') {
-    // Level 3 Student: Filter record ID = their own linked ID / Roll No / Email
     const studentScoped = studentsStore.filter(
       (s) =>
         (user.studentRollNo && s.rollNo === user.studentRollNo) ||
@@ -371,12 +425,90 @@ app.get('/api/students', authenticateToken, (req: AuthenticatedRequest, res) => 
   return res.status(403).json({ error: 'Unauthorized role.' });
 });
 
-// GET /api/counselors (Admin sees all; others can view counselor directory)
+// GET /api/counselors
 app.get('/api/counselors', authenticateToken, (_req: AuthenticatedRequest, res) => {
   res.json({ counselors: counselorsStore });
 });
 
-// GET /api/fees (Filtered by role: Student sees own; Counselor sees assigned; Admin sees all)
+// POST /api/counselors (Admin self-service add counselor)
+app.post('/api/counselors', authenticateToken, authorizeRole(['admin']), (req: AuthenticatedRequest, res) => {
+  const { name, email, phone, specialization } = req.body;
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email are required for counselor.' });
+  }
+
+  const newCounselor: CounselorRecord = {
+    id: `counselor-${Date.now()}`,
+    name,
+    email,
+    phone: phone || '+92 300 0000000',
+    specialization: specialization || 'General Counseling',
+    assignedStudentIds: [],
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+  };
+
+  counselorsStore.push(newCounselor);
+
+  // Also add user auth record so counselor can log in immediately
+  usersStore.push({
+    id: `usr-${newCounselor.id}`,
+    name: newCounselor.name,
+    email: newCounselor.email,
+    plainPassword: 'counselor123',
+    passwordHash: bcrypt.hashSync('counselor123', 8),
+    role: 'counselor',
+    linkedProfileId: newCounselor.id,
+    counselorId: newCounselor.id,
+    counselorName: newCounselor.name,
+  });
+
+  res.status(201).json({ success: true, counselor: newCounselor, message: 'Counselor added successfully with login access!' });
+});
+
+// PATCH /api/counselors/:id (Admin self-service edit counselor)
+app.patch('/api/counselors/:id', authenticateToken, authorizeRole(['admin']), (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  const index = counselorsStore.findIndex((c) => c.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Counselor not found.' });
+  }
+
+  counselorsStore[index] = {
+    ...counselorsStore[index],
+    ...req.body,
+  };
+
+  // Update counselorName in assigned students
+  if (req.body.name) {
+    studentsStore = studentsStore.map((s) => {
+      if (s.counselorId === id) {
+        return { ...s, counselorName: req.body.name };
+      }
+      return s;
+    });
+  }
+
+  res.json({ success: true, counselor: counselorsStore[index] });
+});
+
+// DELETE /api/counselors/:id (Admin self-service delete counselor)
+app.delete('/api/counselors/:id', authenticateToken, authorizeRole(['admin']), (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  counselorsStore = counselorsStore.filter((c) => c.id !== id);
+  // Reassign affected students to default counselor if any exist
+  const defaultCounselor = counselorsStore[0];
+  if (defaultCounselor) {
+    studentsStore = studentsStore.map((s) => {
+      if (s.counselorId === id) {
+        return { ...s, counselorId: defaultCounselor.id, counselorName: defaultCounselor.name };
+      }
+      return s;
+    });
+  }
+  res.json({ success: true, message: 'Counselor deleted and students reassigned.' });
+});
+
+// GET /api/fees
 app.get('/api/fees', authenticateToken, (req: AuthenticatedRequest, res) => {
   const user = req.user!;
 
@@ -404,7 +536,42 @@ app.get('/api/fees', authenticateToken, (req: AuthenticatedRequest, res) => {
   return res.status(403).json({ error: 'Unauthorized.' });
 });
 
-// POST /api/students (Admin & Counselor authorized)
+// PATCH /api/fees/:id (Update fee payment/status)
+app.patch('/api/fees/:id', authenticateToken, authorizeRole(['admin']), (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  const index = feesStore.findIndex((f) => f.id === id || f.studentId === id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Fee record not found.' });
+  }
+
+  const existing = feesStore[index];
+  const paid = req.body.paidAmount !== undefined ? Number(req.body.paidAmount) : existing.paidAmount;
+  const total = req.body.totalAmount !== undefined ? Number(req.body.totalAmount) : existing.totalAmount;
+  const balance = total - paid;
+  let status = req.body.status || (balance <= 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Pending');
+
+  feesStore[index] = {
+    ...existing,
+    ...req.body,
+    paidAmount: paid,
+    totalAmount: total,
+    balance: balance < 0 ? 0 : balance,
+    status,
+    lastPaymentDate: paid > 0 ? new Date().toISOString().split('T')[0] : existing.lastPaymentDate,
+  };
+
+  // Sync to student record
+  const stuIdx = studentsStore.findIndex((s) => s.id === existing.studentId);
+  if (stuIdx !== -1) {
+    studentsStore[stuIdx].feePaid = paid;
+    studentsStore[stuIdx].feeAmount = total;
+    studentsStore[stuIdx].feeStatus = status as any;
+  }
+
+  res.json({ success: true, fee: feesStore[index] });
+});
+
+// POST /api/students (Add student)
 app.post('/api/students', authenticateToken, authorizeRole(['admin', 'counselor']), async (req: AuthenticatedRequest, res) => {
   const newStudent: StudentRecord = {
     ...req.body,
@@ -415,7 +582,7 @@ app.post('/api/students', authenticateToken, authorizeRole(['admin', 'counselor'
 
   studentsStore.unshift(newStudent);
 
-  // Also add fee record
+  // Add fee record
   feesStore.unshift({
     id: `fee-${newStudent.id}`,
     studentId: newStudent.id,
@@ -429,12 +596,27 @@ app.post('/api/students', authenticateToken, authorizeRole(['admin', 'counselor'
     dueDate: newStudent.dueDate,
   });
 
-  // If connected to Notion, push page to Notion Database
+  // Create login auth user for the new student so they can log in immediately
+  usersStore.push({
+    id: `usr-${newStudent.id}`,
+    name: newStudent.fullName,
+    email: newStudent.email,
+    plainPassword: 'student123',
+    passwordHash: bcrypt.hashSync('student123', 8),
+    role: 'student',
+    studentRollNo: newStudent.rollNo,
+    linkedProfileId: newStudent.id,
+    counselorId: newStudent.counselorId,
+    counselorName: newStudent.counselorName,
+  });
+
+  // If connected to Notion, push page
   if (notionConfig.isConnected && notionConfig.apiKey && notionConfig.studentsDatabaseId) {
     try {
+      const cleanDbId = notionConfig.studentsDatabaseId.replace(/-/g, '').trim();
       const notion = new Client({ auth: notionConfig.apiKey }) as any;
       await notion.pages.create({
-        parent: { database_id: notionConfig.studentsDatabaseId },
+        parent: { database_id: cleanDbId },
         properties: {
           'Name': { title: [{ text: { content: newStudent.fullName } }] },
           'Roll No': { rich_text: [{ text: { content: newStudent.rollNo } }] },
@@ -452,10 +634,10 @@ app.post('/api/students', authenticateToken, authorizeRole(['admin', 'counselor'
     }
   }
 
-  res.status(201).json({ success: true, student: newStudent });
+  res.status(201).json({ success: true, student: newStudent, message: 'Student created successfully with portal login credentials (password: student123)!' });
 });
 
-// PATCH /api/students/:id (Admin & Counselor authorized)
+// PATCH /api/students/:id
 app.patch('/api/students/:id', authenticateToken, authorizeRole(['admin', 'counselor']), async (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
   const updates = req.body;
@@ -465,7 +647,6 @@ app.patch('/api/students/:id', authenticateToken, authorizeRole(['admin', 'couns
     return res.status(404).json({ error: 'Student record not found.' });
   }
 
-  // Counselors can only edit their own students
   if (req.user?.role === 'counselor' && studentsStore[index].counselorId !== req.user.counselorId) {
     return res.status(403).json({ error: 'Forbidden: You cannot modify students outside your assigned group.' });
   }
@@ -486,28 +667,28 @@ app.patch('/api/students/:id', authenticateToken, authorizeRole(['admin', 'couns
       feesStore[feeIdx].paidAmount = updates.feePaid;
       feesStore[feeIdx].balance = feesStore[feeIdx].totalAmount - updates.feePaid;
     }
+    if (updates.course) feesStore[feeIdx].course = updates.course;
+    if (updates.fullName) feesStore[feeIdx].studentName = updates.fullName;
   }
 
-  // If connected to Notion, patch page in Notion Database
-  if (updatedStudent.notionPageId && notionConfig.isConnected && notionConfig.apiKey) {
-    try {
-      const notion = new Client({ auth: notionConfig.apiKey }) as any;
-      const propsToUpdate: any = {};
-      if (updates.feeStatus) propsToUpdate['Fee Status'] = { select: { name: updates.feeStatus } };
-      if (updates.feePaid !== undefined) propsToUpdate['Fee Paid'] = { number: updates.feePaid };
-
-      if (Object.keys(propsToUpdate).length > 0) {
-        await notion.pages.update({
-          page_id: updatedStudent.notionPageId,
-          properties: propsToUpdate,
-        });
-      }
-    } catch (err) {
-      console.error('Failed patching Notion page:', err);
-    }
+  // Update auth user if email/name changed
+  const uIdx = usersStore.findIndex((u) => u.linkedProfileId === id || u.studentRollNo === updatedStudent.rollNo);
+  if (uIdx !== -1) {
+    if (updates.fullName) usersStore[uIdx].name = updates.fullName;
+    if (updates.email) usersStore[uIdx].email = updates.email;
+    if (updates.counselorId) usersStore[uIdx].counselorId = updates.counselorId;
   }
 
   res.json({ success: true, student: updatedStudent });
+});
+
+// DELETE /api/students/:id (Admin self-service delete student)
+app.delete('/api/students/:id', authenticateToken, authorizeRole(['admin']), (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  studentsStore = studentsStore.filter((s) => s.id !== id);
+  feesStore = feesStore.filter((f) => f.studentId !== id);
+  usersStore = usersStore.filter((u) => u.linkedProfileId !== id);
+  res.json({ success: true, message: 'Student and linked fee records deleted successfully.' });
 });
 
 // POST /api/students/:id/notes (Add Counselor Note)
@@ -533,6 +714,12 @@ app.post('/api/students/:id/notes', authenticateToken, authorizeRole(['admin', '
 
   student.counselorNotes.unshift(newNote);
   res.json({ success: true, note: newNote, student });
+});
+
+// Global Error Handling Middleware
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Express server error handler:', err);
+  res.status(500).json({ error: err?.message || 'Internal server error' });
 });
 
 // Server Initialization

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Key, Shield, Code, CheckCircle, X, Copy, Check } from 'lucide-react';
+import { Key, Shield, Code, CheckCircle, X, Copy, Check, ArrowLeft } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -26,11 +26,19 @@ export const JwtInspectorModal: React.FC<Props> = ({ isOpen, onClose }) => {
       <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 text-slate-100">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
           <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 text-xs font-semibold"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
             <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
               <Key className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-white">Live JWT Token &amp; Claims Inspector</h2>
+              <h2 className="text-base sm:text-xl font-semibold text-white">Live JWT Token &amp; Claims Inspector</h2>
               <p className="text-xs text-slate-400">Decoded payload enforced on every API request by the backend</p>
             </div>
           </div>
