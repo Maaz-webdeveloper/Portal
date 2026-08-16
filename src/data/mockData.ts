@@ -120,7 +120,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     fullName: 'Ayesha Malik',
     email: 'ayesha.student@school.edu',
     phone: '+92 321 4455667',
-    course: 'Full Stack Web Development',
+    course: 'Ivy League & US Top 20 Admissions',
     counselorId: 'counselor-1',
     counselorName: 'Sarah Khan',
     feeStatus: 'Paid',
@@ -135,14 +135,26 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
         id: 'note-1',
         authorName: 'Sarah Khan',
         date: '2026-07-28',
-        note: 'Completed React & Node.js module with top marks. Excellent project submission.',
+        note: 'Completed Common App personal statement draft. Excellent narrative on community robotics.',
       },
       {
         id: 'note-2',
         authorName: 'Sarah Khan',
         date: '2026-06-10',
-        note: 'Initial orientation session completed. High enthusiasm for frontend development.',
+        note: 'Initial strategy session completed. High potential for Stanford and MIT early action.',
       }
+    ],
+    applications: [
+      { id: 'app-1', universityName: 'Stanford University', country: 'US', tier: 'Reach', major: 'Computer Science', status: 'Drafting Essays', deadline: '2026-11-01' },
+      { id: 'app-2', universityName: 'UC Berkeley', country: 'US', tier: 'Target', major: 'EECS', status: 'Planning', deadline: '2026-11-30' },
+      { id: 'app-3', universityName: 'University of Michigan', country: 'US', tier: 'Safety', major: 'Software Engineering', status: 'Submitted', deadline: '2026-10-15' },
+    ],
+    essays: [
+      { id: 'essay-1', title: 'Common App Personal Statement', type: 'Personal Statement (Common App)', status: 'In Review', lastUpdated: '2026-08-10', counselorFeedback: 'Great hook! Expand on the robotics team leadership role in paragraph 3.' },
+      { id: 'essay-2', title: 'Why Stanford Supplemental', type: 'Supplemental Essay', status: 'Drafting', lastUpdated: '2026-08-12', counselorFeedback: 'Connect your CS project directly with Stanford d.school initiatives.' },
+    ],
+    sessions: [
+      { id: 'sess-1', topic: 'Ivy League Profile Positioning & Extracurricular Audit', counselorName: 'Sarah Khan', date: '2026-08-20', time: '04:00 PM', status: 'Scheduled', meetingLink: 'https://meet.google.com/pine-ivyleague-meet' }
     ],
     lastSyncedAt: new Date().toISOString(),
   },
@@ -153,7 +165,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     fullName: 'Ali Raza',
     email: 'ali.student@school.edu',
     phone: '+92 333 8877665',
-    course: 'UI/UX Design Systems',
+    course: 'UK / UCAS Undergraduate Consulting',
     counselorId: 'counselor-1',
     counselorName: 'Sarah Khan',
     feeStatus: 'Pending',
@@ -168,8 +180,18 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
         id: 'note-3',
         authorName: 'Sarah Khan',
         date: '2026-07-20',
-        note: 'Submitted Figma portfolio draft. Advised on fee balance remaining ($600).',
+        note: 'Submitted UCAS personal statement draft. Advised on fee balance remaining ($600).',
       }
+    ],
+    applications: [
+      { id: 'app-4', universityName: 'University of Oxford', country: 'UK', tier: 'Reach', major: 'Economics & Management', status: 'Drafting Essays', deadline: '2026-10-15' },
+      { id: 'app-5', universityName: 'LSE (London School of Economics)', country: 'UK', tier: 'Target', major: 'Finance', status: 'Planning', deadline: '2026-01-25' },
+    ],
+    essays: [
+      { id: 'essay-3', title: 'UCAS Personal Statement', type: 'Personal Statement (Common App)', status: 'Revision Needed', lastUpdated: '2026-08-05', counselorFeedback: 'Needs 80% academic focus and 20% extracurriculars for UK universities.' },
+    ],
+    sessions: [
+      { id: 'sess-2', topic: 'UCAS Course Selection & LOR Guidance', counselorName: 'Sarah Khan', date: '2026-08-22', time: '02:00 PM', status: 'Scheduled', meetingLink: 'https://meet.google.com/pine-ucas-meet' }
     ],
     lastSyncedAt: new Date().toISOString(),
   },
@@ -180,7 +202,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     fullName: 'Hamza Farooq',
     email: 'hamza.student@school.edu',
     phone: '+92 302 5544332',
-    course: 'Data Science & Machine Learning',
+    course: 'Master’s & Graduate Admissions',
     counselorId: 'counselor-2',
     counselorName: 'Tariq Mehmood',
     feeStatus: 'Overdue',
@@ -195,8 +217,18 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
         id: 'note-4',
         authorName: 'Tariq Mehmood',
         date: '2026-07-15',
-        note: 'Sent formal reminder regarding overdue tuition fees ($1000 outstanding).',
+        note: 'Sent formal reminder regarding overdue consulting fees ($1000 outstanding).',
       }
+    ],
+    applications: [
+      { id: 'app-6', universityName: 'Carnegie Mellon University', country: 'US', tier: 'Reach', major: 'MS in Machine Learning', status: 'Planning', deadline: '2026-12-01' },
+      { id: 'app-7', universityName: 'Georgia Tech', country: 'US', tier: 'Target', major: 'MS in Computer Science', status: 'Planning', deadline: '2026-12-15' },
+    ],
+    essays: [
+      { id: 'essay-4', title: 'Statement of Purpose (SOP)', type: 'SOP (Master\'s)', status: 'Drafting', lastUpdated: '2026-07-28', counselorFeedback: 'Outline your undergraduate thesis research methodology clearly.' },
+    ],
+    sessions: [
+      { id: 'sess-3', topic: 'GRE Score Strategy & SOP Brainstorming', counselorName: 'Tariq Mehmood', date: '2026-08-25', time: '05:00 PM', status: 'Scheduled', meetingLink: 'https://meet.google.com/pine-masters-meet' }
     ],
     lastSyncedAt: new Date().toISOString(),
   },
@@ -207,7 +239,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     fullName: 'Zainab Bibi',
     email: 'zainab.student@school.edu',
     phone: '+92 312 9988776',
-    course: 'Full Stack Web Development',
+    course: 'Ivy League & US Top 20 Admissions',
     counselorId: 'counselor-1',
     counselorName: 'Sarah Khan',
     feeStatus: 'Paid',
@@ -222,8 +254,18 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
         id: 'note-5',
         authorName: 'Sarah Khan',
         date: '2026-07-30',
-        note: 'Consistent top performer in weekly coding labs.',
+        note: 'Consistent top performer in college application milestone reviews.',
       }
+    ],
+    applications: [
+      { id: 'app-8', universityName: 'Harvard University', country: 'US', tier: 'Reach', major: 'Biomedical Engineering', status: 'Drafting Essays', deadline: '2026-11-01' },
+      { id: 'app-9', universityName: 'Johns Hopkins University', country: 'US', tier: 'Target', major: 'Pre-Med / Neuroscience', status: 'Submitted', deadline: '2026-11-15' },
+    ],
+    essays: [
+      { id: 'essay-5', title: 'Harvard Supplemental Essay', type: 'Supplemental Essay', status: 'Approved', lastUpdated: '2026-08-02', counselorFeedback: 'Exceptional articulation of your medical research internship.' },
+    ],
+    sessions: [
+      { id: 'sess-4', topic: 'Interview Prep & Mock Alumni Session', counselorName: 'Sarah Khan', date: '2026-08-19', time: '03:00 PM', status: 'Scheduled', meetingLink: 'https://meet.google.com/pine-harvard-prep' }
     ],
     lastSyncedAt: new Date().toISOString(),
   },
@@ -234,7 +276,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     fullName: 'Bilal Hussain',
     email: 'bilal.student@school.edu',
     phone: '+92 345 1122334',
-    course: 'Cyber Security Essentials',
+    course: 'Standardized Tests (SAT / ACT / IELTS)',
     counselorId: 'counselor-2',
     counselorName: 'Tariq Mehmood',
     feeStatus: 'Paid',
@@ -249,8 +291,17 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
         id: 'note-6',
         authorName: 'Tariq Mehmood',
         date: '2026-07-25',
-        note: 'Passed mid-term practical exam successfully.',
+        note: 'Scored 1520 on official SAT diagnostic test.',
       }
+    ],
+    applications: [
+      { id: 'app-10', universityName: 'University of Toronto', country: 'Canada', tier: 'Target', major: 'Computer Engineering', status: 'Planning', deadline: '2026-01-15' },
+    ],
+    essays: [
+      { id: 'essay-6', title: 'SAT Essay & Practice Diagnostics', type: 'Resume / CV', status: 'Approved', lastUpdated: '2026-08-08', counselorFeedback: 'Ready for official SAT test date.' },
+    ],
+    sessions: [
+      { id: 'sess-5', topic: 'SAT Math Advanced Problem Solving', counselorName: 'Tariq Mehmood', date: '2026-08-21', time: '11:00 AM', status: 'Scheduled', meetingLink: 'https://meet.google.com/pine-sat-math' }
     ],
     lastSyncedAt: new Date().toISOString(),
   }

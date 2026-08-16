@@ -18,6 +18,35 @@ export interface AuthSession {
   user: User;
 }
 
+export interface CollegeApplication {
+  id: string;
+  universityName: string;
+  country: string; // 'US' | 'UK' | 'Canada' | 'Europe' | 'Pakistan'
+  tier: 'Reach' | 'Target' | 'Safety';
+  major: string;
+  status: 'Planning' | 'Drafting Essays' | 'Submitted' | 'Interview' | 'Accepted' | 'Waitlisted';
+  deadline: string;
+}
+
+export interface EssayReview {
+  id: string;
+  title: string;
+  type: 'Personal Statement (Common App)' | 'Supplemental Essay' | 'SOP (Master\'s)' | 'Resume / CV';
+  status: 'Drafting' | 'In Review' | 'Revision Needed' | 'Approved';
+  lastUpdated: string;
+  counselorFeedback?: string;
+}
+
+export interface MentorSession {
+  id: string;
+  topic: string;
+  counselorName: string;
+  date: string;
+  time: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  meetingLink: string;
+}
+
 export interface StudentRecord {
   id: string;
   notionPageId?: string;
@@ -39,6 +68,9 @@ export interface StudentRecord {
     date: string;
     note: string;
   }[];
+  applications?: CollegeApplication[];
+  essays?: EssayReview[];
+  sessions?: MentorSession[];
   lastSyncedAt: string;
   academicProgress: number; // 0-100%
   attendancePercentage: number; // 0-100%

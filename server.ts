@@ -34,17 +34,17 @@ let usersStore = INITIAL_USERS.map((u) => ({
 let feesStore: FeeRecord[] = [...INITIAL_FEES];
 
 let systemSettings: SystemSettings = {
-  portalName: 'Notion Student Portal',
-  institutionName: 'Apex Institute of Technology & Management',
-  academicTerm: 'Fall 2026 Semester',
-  supportEmail: 'admissions@school.edu',
+  portalName: 'Pine Admissions Portal',
+  institutionName: 'Pine Admissions & College Consulting',
+  academicTerm: 'Fall 2026 / 2027 Intake',
+  supportEmail: 'admissions@pineadmissions.com',
   currencySymbol: '$',
   availableCourses: [
-    'Full Stack Web Development',
-    'UI/UX Design Systems',
-    'Data Science & Machine Learning',
-    'Cyber Security Essentials',
-    'Cloud Architecture & DevOps',
+    'Ivy League & US Top 20 Admissions',
+    'UK / UCAS Undergraduate Consulting',
+    'Standardized Tests (SAT / ACT / IELTS)',
+    'Common App & Essay Mentorship',
+    'Master’s & Graduate Admissions',
   ],
   allowStudentFeeDownload: true,
   lastUpdated: new Date().toISOString(),
