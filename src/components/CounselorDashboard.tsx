@@ -18,7 +18,12 @@ import {
   CreditCard,
   ArrowLeft,
   Shield,
+  Printer,
+  Share2,
 } from 'lucide-react';
+import { FeeChallanModal } from './FeeChallanModal';
+import { FeeReminderModal } from './FeeReminderModal';
+import { SystemSettings } from '../types';
 
 interface Props {
   activeTab?: 'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion';
@@ -34,6 +39,19 @@ export const CounselorDashboard: React.FC<Props> = ({ activeTab = 'overview' }) 
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [showChallanModal, setShowChallanModal] = useState(false);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [activeFeeRecord, setActiveFeeRecord] = useState<FeeRecord | null>(null);
+  const [settings, setSettings] = useState<SystemSettings>({
+    portalName: 'Notion Student Portal',
+    institutionName: 'Apex Institute of Technology & Management',
+    academicTerm: 'Fall 2026 Semester',
+    supportEmail: 'admissions@school.edu',
+    currencySymbol: '$',
+    availableCourses: ['Full Stack Web Development'],
+    allowStudentFeeDownload: true,
+    lastUpdated: new Date().toISOString(),
+  });
 
   useEffect(() => {
     fetchCohortData();
@@ -355,7 +373,7 @@ export const CounselorDashboard: React.FC<Props> = ({ activeTab = 'overview' }) 
                     </span>
                   </div>
 
-                  {/* Metrics */}
+                  {/* Metrics & Billing Actions */}
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl">
                       <span className="text-[10px] text-slate-500 uppercase block font-semibold">Progress</span>
@@ -370,6 +388,64 @@ export const CounselorDashboard: React.FC<Props> = ({ activeTab = 'overview' }) 
                       <span className="text-sm font-bold text-amber-400 font-mono">
                         ${selectedStudent.feeAmount - selectedStudent.feePaid}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Financial Quick Dispatch Actions */}
+                  <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-400 flex items-center gap-1.5 font-medium">
+                      <CreditCard className="w-3.5 h-3.5 text-emerald-400" /> Student Fee &amp; Challan:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const matchedFee = fees.find((f) => f.studentRollNo === selectedStudent.rollNo || f.studentId === selectedStudent.id) || {
+                            id: `fee-${selectedStudent.id}`,
+                            studentId: selectedStudent.id,
+                            studentName: selectedStudent.fullName,
+                            studentRollNo: selectedStudent.rollNo,
+                            course: selectedStudent.course,
+                            totalAmount: selectedStudent.feeAmount,
+                            paidAmount: selectedStudent.feePaid,
+                            balance: selectedStudent.feeAmount - selectedStudent.feePaid,
+                            status: selectedStudent.feeStatus === 'Pending' ? 'Unpaid' : selectedStudent.feeStatus,
+                            dueDate: selectedStudent.dueDate,
+                            lastUpdated: new Date().toISOString(),
+                          };
+                          setActiveFeeRecord(matchedFee);
+                          setShowChallanModal(true);
+                        }}
+                        className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Print Challan</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const matchedFee = fees.find((f) => f.studentRollNo === selectedStudent.rollNo || f.studentId === selectedStudent.id) || {
+                            id: `fee-${selectedStudent.id}`,
+                            studentId: selectedStudent.id,
+                            studentName: selectedStudent.fullName,
+                            studentRollNo: selectedStudent.rollNo,
+                            course: selectedStudent.course,
+                            totalAmount: selectedStudent.feeAmount,
+                            paidAmount: selectedStudent.feePaid,
+                            balance: selectedStudent.feeAmount - selectedStudent.feePaid,
+                            status: selectedStudent.feeStatus === 'Pending' ? 'Unpaid' : selectedStudent.feeStatus,
+                            dueDate: selectedStudent.dueDate,
+                            lastUpdated: new Date().toISOString(),
+                          };
+                          setActiveFeeRecord(matchedFee);
+                          setShowReminderModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>1-Click Reminder</span>
+                      </button>
                     </div>
                   </div>
 
@@ -427,6 +503,34 @@ export const CounselorDashboard: React.FC<Props> = ({ activeTab = 'overview' }) 
             </div>
           </div>
         </>
+      )}
+
+      {/* Fee Challan Modal for Counselor */}
+      {activeFeeRecord && (
+        <FeeChallanModal
+          isOpen={showChallanModal}
+          onClose={() => {
+            setShowChallanModal(false);
+            setActiveFeeRecord(null);
+          }}
+          fee={activeFeeRecord}
+          student={selectedStudent}
+          settings={settings}
+        />
+      )}
+
+      {/* Fee Reminder Modal for Counselor */}
+      {activeFeeRecord && (
+        <FeeReminderModal
+          isOpen={showReminderModal}
+          onClose={() => {
+            setShowReminderModal(false);
+            setActiveFeeRecord(null);
+          }}
+          fee={activeFeeRecord}
+          student={selectedStudent}
+          settings={settings}
+        />
       )}
     </div>
   );

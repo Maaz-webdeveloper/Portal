@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  switchRoleQuick: (role: 'admin' | 'counselor' | 'student', specificUserId?: string) => Promise<void>;
+  switchRoleQuick: (role: 'admin' | 'counselor' | 'student', specificUserIdOrRoll?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,6 +57,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToken(storedToken);
           }
         }
+      } else {
+        // Default to admin on first load
+        const defaultAdmin = INITIAL_USERS[0];
+        setUser(defaultAdmin);
+        setToken(`mock-jwt-token-${defaultAdmin.id}`);
       }
       setIsLoading(false);
     };
@@ -69,12 +74,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.user) {
           localStorage.setItem('portal_jwt_token', data.token);
           localStorage.setItem('portal_user_data', JSON.stringify(data.user));
           setToken(data.token);
@@ -83,7 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // If server returned non-200 or invalid credentials
       const data = await res.json().catch(() => ({}));
       if (data?.error) {
         return { success: false, error: data.error };
@@ -118,20 +122,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let pass = 'admin123password';
 
     if (role === 'counselor') {
-      if (specificUserIdOrRoll === 'usr-counselor-2' || specificUserIdOrRoll === 'counselor-2' || specificUserIdOrRoll?.toLowerCase().includes('tariq')) {
+      if (
+        specificUserIdOrRoll === 'usr-counselor-2' ||
+        specificUserIdOrRoll === 'counselor-2' ||
+        specificUserIdOrRoll?.toLowerCase().includes('tariq')
+      ) {
         email = 'tariq.counselor@school.edu';
       } else {
         email = 'sarah.counselor@school.edu';
       }
       pass = 'counselor123';
     } else if (role === 'student') {
-      if (specificUserIdOrRoll === 'usr-student-2' || specificUserIdOrRoll === 'stu-2' || specificUserIdOrRoll === 'STU-2024-002') {
+      if (
+        specificUserIdOrRoll === 'usr-student-2' ||
+        specificUserIdOrRoll === 'stu-2' ||
+        specificUserIdOrRoll === 'STU-2024-002' ||
+        specificUserIdOrRoll?.toLowerCase().includes('ali')
+      ) {
         email = 'ali.student@school.edu';
-      } else if (specificUserIdOrRoll === 'usr-student-3' || specificUserIdOrRoll === 'stu-3' || specificUserIdOrRoll === 'STU-2024-003') {
+      } else if (
+        specificUserIdOrRoll === 'usr-student-3' ||
+        specificUserIdOrRoll === 'stu-3' ||
+        specificUserIdOrRoll === 'STU-2024-003' ||
+        specificUserIdOrRoll?.toLowerCase().includes('hamza')
+      ) {
         email = 'hamza.student@school.edu';
-      } else if (specificUserIdOrRoll === 'usr-student-4' || specificUserIdOrRoll === 'stu-4' || specificUserIdOrRoll === 'STU-2024-004') {
-        email = 'fatima.student@school.edu';
-      } else if (specificUserIdOrRoll === 'usr-student-5' || specificUserIdOrRoll === 'stu-5' || specificUserIdOrRoll === 'STU-2024-005') {
+      } else if (
+        specificUserIdOrRoll === 'usr-student-4' ||
+        specificUserIdOrRoll === 'stu-4' ||
+        specificUserIdOrRoll === 'STU-2024-004' ||
+        specificUserIdOrRoll?.toLowerCase().includes('zainab')
+      ) {
         email = 'zainab.student@school.edu';
       } else {
         email = 'ayesha.student@school.edu';
@@ -139,6 +160,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       pass = 'student123';
     }
 
+    // Direct optimistic instant update from INITIAL_USERS so UI responds in 0ms
+    const targetUser = INITIAL_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (targetUser) {
+      setUser(targetUser);
+      localStorage.setItem('portal_user_data', JSON.stringify(targetUser));
+    }
+
+    // Complete backend login and token generation
     await login(email, pass);
   };
 
@@ -147,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         token,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated: !!user,
         isLoading,
         login,
         logout,

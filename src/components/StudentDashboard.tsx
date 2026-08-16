@@ -19,14 +19,30 @@ import {
   ShieldAlert,
   ArrowLeft,
   Shield,
+  Printer,
 } from 'lucide-react';
+import { FeeChallanModal } from './FeeChallanModal';
+import { InstallmentPlanModal } from './InstallmentPlanModal';
+import { SystemSettings } from '../types';
 
 export const StudentDashboard: React.FC = () => {
   const { user, token, switchRoleQuick } = useAuth();
   const [studentData, setStudentData] = useState<StudentRecord | null>(null);
   const [feeRecord, setFeeRecord] = useState<FeeRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showChallanModal, setShowChallanModal] = useState(false);
+  const [showInstallmentModal, setShowInstallmentModal] = useState(false);
   const [receiptDownloaded, setReceiptDownloaded] = useState(false);
+  const [settings, setSettings] = useState<SystemSettings>({
+    portalName: 'Notion Student Portal',
+    institutionName: 'Apex Institute of Technology & Management',
+    academicTerm: 'Fall 2026 Semester',
+    supportEmail: 'admissions@school.edu',
+    currencySymbol: '$',
+    availableCourses: ['Full Stack Web Development'],
+    allowStudentFeeDownload: true,
+    lastUpdated: new Date().toISOString(),
+  });
 
   useEffect(() => {
     fetchStudentData();
@@ -258,17 +274,30 @@ export const StudentDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 flex items-center justify-between gap-2">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1">
+          <div className="mt-4 pt-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
               <Calendar className="w-3.5 h-3.5 text-slate-500" /> Due: {studentData.dueDate}
             </div>
-            <button
-              onClick={handleDownloadReceipt}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-white rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5 text-indigo-400" />
-              {receiptDownloaded ? 'Receipt Saved' : 'Voucher'}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowInstallmentModal(true)}
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-sky-300 rounded-lg transition-colors flex items-center gap-1"
+                title="View Installment Milestones"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Schedule</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowChallanModal(true)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-indigo-600/20"
+                title="Print Official 3-Part Challan Voucher"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Challan</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -327,6 +356,29 @@ export const StudentDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Official 3-Part Fee Challan Modal */}
+      {feeRecord && (
+        <FeeChallanModal
+          isOpen={showChallanModal}
+          onClose={() => setShowChallanModal(false)}
+          fee={feeRecord}
+          student={studentData}
+          settings={settings}
+        />
+      )}
+
+      {/* Installment Plan Modal */}
+      {feeRecord && (
+        <InstallmentPlanModal
+          isOpen={showInstallmentModal}
+          onClose={() => setShowInstallmentModal(false)}
+          fee={feeRecord}
+          student={studentData}
+          settings={settings}
+          onSaveInstallments={() => {}}
+        />
+      )}
     </div>
   );
 };

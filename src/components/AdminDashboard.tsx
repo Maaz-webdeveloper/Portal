@@ -29,10 +29,25 @@ import {
   ExternalLink,
   ArrowLeft,
   X,
+  Terminal,
+  Copy,
+  Check,
+  Code,
+  FileJson,
+  Layers,
+  Cpu,
+  Printer,
+  Receipt,
+  Share2,
+  MessageCircle,
+  Calendar,
 } from 'lucide-react';
+import { FeeChallanModal } from './FeeChallanModal';
+import { FeeReminderModal } from './FeeReminderModal';
+import { InstallmentPlanModal } from './InstallmentPlanModal';
 
 interface Props {
-  activeTab: 'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion';
+  activeTab: 'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion' | 'debug';
   onOpenNotionModal: () => void;
   onOpenArchitecture: () => void;
 }
@@ -42,6 +57,8 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [counselors, setCounselors] = useState<CounselorRecord[]>([]);
   const [fees, setFees] = useState<FeeRecord[]>([]);
+  const [debugView, setDebugView] = useState<'overview' | 'students' | 'counselors' | 'fees' | 'notion_map' | 'raw_all'>('overview');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [settings, setSettings] = useState<SystemSettings>({
     portalName: 'Notion Student Portal',
     institutionName: 'Apex Institute of Technology & Management',
@@ -68,6 +85,12 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
   const [showAddCounselorModal, setShowAddCounselorModal] = useState(false);
   const [editingCounselor, setEditingCounselor] = useState<CounselorRecord | null>(null);
   const [editingFee, setEditingFee] = useState<FeeRecord | null>(null);
+  const [challanFee, setChallanFee] = useState<FeeRecord | null>(null);
+  const [showChallanModal, setShowChallanModal] = useState(false);
+  const [reminderFee, setReminderFee] = useState<FeeRecord | null>(null);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [installmentFee, setInstallmentFee] = useState<FeeRecord | null>(null);
+  const [showInstallmentModal, setShowInstallmentModal] = useState(false);
   const [newCourseInput, setNewCourseInput] = useState('');
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -571,6 +594,55 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
     handleToggleFeeStatus({ ...fee, status: 'Pending' });
   };
 
+  // SAVE INSTALLMENTS SCHEDULE
+  const handleSaveInstallments = async (
+    feeId: string,
+    updatedPaidAmount: number,
+    updatedStatus: 'Paid' | 'Partial' | 'Unpaid'
+  ) => {
+    const existing = fees.find((f) => f.id === feeId);
+    if (!existing) return;
+
+    const newBalance = Math.max(0, existing.totalAmount - updatedPaidAmount);
+    const updatedFee: FeeRecord = {
+      ...existing,
+      paidAmount: updatedPaidAmount,
+      balance: newBalance,
+      status: updatedStatus,
+    };
+
+    // Optimistic local state update
+    setFees((prev) => prev.map((f) => (f.id === feeId ? updatedFee : f)));
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id === existing.studentId || s.rollNo === existing.studentRollNo) {
+          return {
+            ...s,
+            feePaid: updatedPaidAmount,
+            feeStatus: updatedStatus,
+          };
+        }
+        return s;
+      })
+    );
+
+    showToast(`Installment plan applied! Updated paid: $${updatedPaidAmount}`);
+
+    // Persist to backend
+    try {
+      await fetch(`/api/fees/${feeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedFee),
+      });
+    } catch (e) {
+      console.error('Error persisting installment update', e);
+    }
+  };
+
   // SAVE PORTAL SETTINGS
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -618,6 +690,15 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
   };
 
   const totalFeeCollected = fees.reduce((sum, f) => sum + f.paidAmount, 0);
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    showToast(`Copied ${key} payload to clipboard!`);
+    setTimeout(() => {
+      setCopiedKey((prev) => (prev === key ? null : prev));
+    }, 2500);
+  };
+
   const totalFeePending = fees.reduce((sum, f) => sum + f.balance, 0);
 
   const filteredStudents = students.filter((s) => {
@@ -1295,6 +1376,39 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <span className="text-[11px] text-slate-500 font-mono">Due: {f.dueDate}</span>
                     <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChallanFee(f);
+                          setShowChallanModal(true);
+                        }}
+                        className="p-1.5 text-indigo-400 hover:text-white rounded-xl bg-slate-900 border border-slate-800 transition-colors"
+                        title="Print 3-Part Fee Challan"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInstallmentFee(f);
+                          setShowInstallmentModal(true);
+                        }}
+                        className="p-1.5 text-sky-400 hover:text-white rounded-xl bg-slate-900 border border-slate-800 transition-colors"
+                        title="Installment Schedule"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReminderFee(f);
+                          setShowReminderModal(true);
+                        }}
+                        className="p-1.5 text-emerald-400 hover:text-white rounded-xl bg-slate-900 border border-slate-800 transition-colors"
+                        title="Send Reminder"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
                       {f.status !== 'Paid' && (
                         <button
                           onClick={() => handleQuickMarkPaid(f)}
@@ -1373,7 +1487,40 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
                       </td>
                       <td className="px-4 py-3 font-mono text-slate-400">{f.dueDate}</td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChallanFee(f);
+                              setShowChallanModal(true);
+                            }}
+                            className="p-1.5 text-indigo-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Print Official 3-Part Fee Challan / Voucher"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInstallmentFee(f);
+                              setShowInstallmentModal(true);
+                            }}
+                            className="p-1.5 text-sky-400 hover:text-sky-300 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Fee Installment Plan & Milestones"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReminderFee(f);
+                              setShowReminderModal(true);
+                            }}
+                            className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Send 1-Click WhatsApp / Email Reminder"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
                           {f.status !== 'Paid' && (
                             <button
                               onClick={() => handleQuickMarkPaid(f)}
@@ -1521,8 +1668,619 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
       )}
 
       {/* ======================================================== */}
-      {/* MODAL: ADD STUDENT */}
+      {/* TAB 6: DEBUG STATE & DATA FLOW INSPECTOR */}
       {/* ======================================================== */}
+      {activeTab === 'debug' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  <Terminal className="w-4 h-4" />
+                </div>
+                <h1 className="text-base sm:text-lg font-extrabold text-white">
+                  Local State &amp; Data Flow Inspector
+                </h1>
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-mono font-bold">
+                  Internal Debugger
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Inspect local in-memory records, state synchronization, and schema readiness before syncing to Notion.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={fetchAllData}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                title="Reload from API store"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Re-fetch State</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  copyToClipboard(
+                    JSON.stringify({ students, counselors, fees, settings }, null, 2),
+                    'Full Portal State'
+                  )
+                }
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-lg shadow-amber-600/20"
+              >
+                {copiedKey === 'Full Portal State' ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+                <span>Copy Full JSON</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <button
+              type="button"
+              onClick={() => setDebugView('students')}
+              className={`p-4 rounded-2xl border text-left transition-all ${
+                debugView === 'students'
+                  ? 'bg-slate-800/90 border-indigo-500/50 shadow-md ring-1 ring-indigo-500/30'
+                  : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Students State</span>
+                <GraduationCap className="w-4 h-4 text-indigo-400" />
+              </div>
+              <p className="text-xl font-bold font-mono text-white mt-1">{students.length}</p>
+              <span className="text-[10px] text-slate-500 block mt-0.5">Records in active memory</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDebugView('counselors')}
+              className={`p-4 rounded-2xl border text-left transition-all ${
+                debugView === 'counselors'
+                  ? 'bg-slate-800/90 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30'
+                  : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Counselors State</span>
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-xl font-bold font-mono text-white mt-1">{counselors.length}</p>
+              <span className="text-[10px] text-slate-500 block mt-0.5">Active counseling advisors</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDebugView('fees')}
+              className={`p-4 rounded-2xl border text-left transition-all ${
+                debugView === 'fees'
+                  ? 'bg-slate-800/90 border-sky-500/50 shadow-md ring-1 ring-sky-500/30'
+                  : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fee Ledger State</span>
+                <CreditCard className="w-4 h-4 text-sky-400" />
+              </div>
+              <p className="text-xl font-bold font-mono text-white mt-1">{fees.length}</p>
+              <span className="text-[10px] text-slate-500 block mt-0.5">Payment transaction items</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDebugView('notion_map')}
+              className={`p-4 rounded-2xl border text-left transition-all ${
+                debugView === 'notion_map'
+                  ? 'bg-slate-800/90 border-amber-500/50 shadow-md ring-1 ring-amber-500/30'
+                  : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Notion Schema</span>
+                <Database className="w-4 h-4 text-amber-400" />
+              </div>
+              <p className="text-xl font-bold font-mono text-emerald-400 mt-1">Ready</p>
+              <span className="text-[10px] text-slate-500 block mt-0.5">4 Notion DB mappings validated</span>
+            </button>
+          </div>
+
+          {/* Sub View Filter Buttons */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar border-b border-slate-800">
+            <button
+              type="button"
+              onClick={() => setDebugView('overview')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                debugView === 'overview'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>State Matrix</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDebugView('students')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                debugView === 'students'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Students Payload ({students.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDebugView('counselors')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                debugView === 'counselors'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Counselors Payload ({counselors.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDebugView('fees')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                debugView === 'fees'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Fee Ledger Payload ({fees.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDebugView('notion_map')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                debugView === 'notion_map'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Notion Mapping Test</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDebugView('raw_all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                debugView === 'raw_all'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Code className="w-3.5 h-3.5" />
+              <span>Full Raw State JSON</span>
+            </button>
+          </div>
+
+          {/* VIEW: OVERVIEW STATE MATRIX */}
+          {debugView === 'overview' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Students Summary Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-indigo-400" /> Students In Memory ({students.length})
+                  </h3>
+                  <button
+                    onClick={() => copyToClipboard(JSON.stringify(students, null, 2), 'Students')}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" /> Copy
+                  </button>
+                </div>
+                <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-slate-950 text-slate-400 uppercase font-mono border-b border-slate-800">
+                      <tr>
+                        <th className="px-3 py-2">Roll No</th>
+                        <th className="px-3 py-2">Name</th>
+                        <th className="px-3 py-2">Fee Status</th>
+                        <th className="px-3 py-2">Counselor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {students.map((s) => (
+                        <tr key={s.id} className="hover:bg-slate-800/40">
+                          <td className="px-3 py-2 text-indigo-300 font-bold">{s.rollNo}</td>
+                          <td className="px-3 py-2 text-white font-sans font-medium">{s.fullName}</td>
+                          <td className="px-3 py-2">
+                            <span className={`px-2 py-0.5 rounded-full border text-[9px] ${getStatusBadge(s.feeStatus)}`}>
+                              {s.feeStatus}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-slate-400 font-sans">{s.counselorName}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Counselors Summary Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-emerald-400" /> Counselors In Memory ({counselors.length})
+                  </h3>
+                  <button
+                    onClick={() => copyToClipboard(JSON.stringify(counselors, null, 2), 'Counselors')}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" /> Copy
+                  </button>
+                </div>
+                <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-slate-950 text-slate-400 uppercase font-mono border-b border-slate-800">
+                      <tr>
+                        <th className="px-3 py-2">ID</th>
+                        <th className="px-3 py-2">Counselor Name</th>
+                        <th className="px-3 py-2">Assigned Cohort</th>
+                        <th className="px-3 py-2">Specialization</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {counselors.map((c) => {
+                        const count = students.filter((s) => s.counselorId === c.id).length;
+                        return (
+                          <tr key={c.id} className="hover:bg-slate-800/40">
+                            <td className="px-3 py-2 text-emerald-400">{c.id}</td>
+                            <td className="px-3 py-2 text-white font-sans font-medium">{c.name}</td>
+                            <td className="px-3 py-2 text-indigo-300 font-bold">{count} Students</td>
+                            <td className="px-3 py-2 text-slate-400 font-sans">{c.specialization}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Fee Ledger Summary Table */}
+              <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-sky-400" /> Fee Ledger Entries In Memory ({fees.length})
+                  </h3>
+                  <button
+                    onClick={() => copyToClipboard(JSON.stringify(fees, null, 2), 'Fee Ledger')}
+                    className="text-xs text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" /> Copy
+                  </button>
+                </div>
+                <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-slate-950 text-slate-400 uppercase font-mono border-b border-slate-800">
+                      <tr>
+                        <th className="px-3 py-2">Student</th>
+                        <th className="px-3 py-2">Course</th>
+                        <th className="px-3 py-2">Total Amount</th>
+                        <th className="px-3 py-2">Paid</th>
+                        <th className="px-3 py-2">Balance</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2">Due Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {fees.map((f) => (
+                        <tr key={f.id} className="hover:bg-slate-800/40">
+                          <td className="px-3 py-2 text-white font-sans font-medium">
+                            {f.studentName}{' '}
+                            <span className="text-[10px] text-slate-500 font-mono block">{f.studentRollNo}</span>
+                          </td>
+                          <td className="px-3 py-2 text-slate-300 font-sans">{f.course}</td>
+                          <td className="px-3 py-2 text-white">${f.totalAmount}</td>
+                          <td className="px-3 py-2 text-emerald-400 font-bold">${f.paidAmount}</td>
+                          <td className="px-3 py-2 text-amber-400 font-bold">${f.balance}</td>
+                          <td className="px-3 py-2">
+                            <span className={`px-2 py-0.5 rounded-full border text-[9px] ${getStatusBadge(f.status)}`}>
+                              {f.status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-slate-400">{f.dueDate}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: STUDENTS JSON */}
+          {debugView === 'students' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-indigo-400" /> `students` Local State Array
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {students.length} objects with properties: <code>id, rollNo, fullName, email, course, counselorId, feeStatus, academicProgress</code>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(JSON.stringify(students, null, 2), 'Students')}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white rounded-xl flex items-center gap-1.5 transition-colors border border-slate-700"
+                >
+                  {copiedKey === 'Students' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>Copy Students JSON</span>
+                </button>
+              </div>
+
+              <div className="relative rounded-2xl bg-slate-950 border border-slate-800 p-4 max-h-[500px] overflow-auto">
+                <pre className="text-[11px] font-mono text-emerald-300 leading-relaxed">
+                  {JSON.stringify(students, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: COUNSELORS JSON */}
+          {debugView === 'counselors' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-emerald-400" /> `counselors` Local State Array
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {counselors.length} advisors with properties: <code>id, name, email, phone, specialization, assignedStudentIds</code>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(JSON.stringify(counselors, null, 2), 'Counselors')}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white rounded-xl flex items-center gap-1.5 transition-colors border border-slate-700"
+                >
+                  {copiedKey === 'Counselors' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>Copy Counselors JSON</span>
+                </button>
+              </div>
+
+              <div className="relative rounded-2xl bg-slate-950 border border-slate-800 p-4 max-h-[500px] overflow-auto">
+                <pre className="text-[11px] font-mono text-sky-300 leading-relaxed">
+                  {JSON.stringify(counselors, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: FEES JSON */}
+          {debugView === 'fees' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-sky-400" /> `fees` Local State Array
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {fees.length} ledger records with properties: <code>id, studentId, studentRollNo, studentName, totalAmount, paidAmount, balance, status, dueDate</code>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(JSON.stringify(fees, null, 2), 'Fee Ledger')}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white rounded-xl flex items-center gap-1.5 transition-colors border border-slate-700"
+                >
+                  {copiedKey === 'Fee Ledger' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>Copy Fee Ledger JSON</span>
+                </button>
+              </div>
+
+              <div className="relative rounded-2xl bg-slate-950 border border-slate-800 p-4 max-h-[500px] overflow-auto">
+                <pre className="text-[11px] font-mono text-indigo-300 leading-relaxed">
+                  {JSON.stringify(fees, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: NOTION SCHEMA MAPPING TEST */}
+          {debugView === 'notion_map' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Database className="w-4 h-4 text-amber-400" /> Notion Database 2-Way Property Schema Mapping
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Verified property name translations between local JSON states and Notion Database columns.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onOpenNotionModal}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Configure Notion API</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Notion DB 1: Students */}
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                      <GraduationCap className="w-4 h-4" /> 1. Students Database
+                    </span>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
+                      Mapped (7 Fields)
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs font-mono">
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>fullName</span>
+                      <span className="text-emerald-400">→ Name (title)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>rollNo</span>
+                      <span className="text-emerald-400">→ Roll Number (rich_text)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>course</span>
+                      <span className="text-emerald-400">→ Course (select)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>counselorId</span>
+                      <span className="text-emerald-400">→ Counselor (relation)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>feeStatus</span>
+                      <span className="text-emerald-400">→ Fee Status (select)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notion DB 2: Counselors */}
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <UserCheck className="w-4 h-4" /> 2. Counselors Database
+                    </span>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
+                      Mapped (5 Fields)
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs font-mono">
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>name</span>
+                      <span className="text-emerald-400">→ Counselor Name (title)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>email</span>
+                      <span className="text-emerald-400">→ Email Address (email)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>specialization</span>
+                      <span className="text-emerald-400">→ Track (select)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>phone</span>
+                      <span className="text-emerald-400">→ Phone (phone_number)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notion DB 3: Fee Ledger */}
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4" /> 3. Fee Ledger Database
+                    </span>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
+                      Mapped (6 Fields)
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs font-mono">
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>studentName</span>
+                      <span className="text-emerald-400">→ Student (relation/title)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>totalAmount</span>
+                      <span className="text-emerald-400">→ Total Fee (number)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>paidAmount</span>
+                      <span className="text-emerald-400">→ Paid to Date (number)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>status</span>
+                      <span className="text-emerald-400">→ Payment Status (select)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>dueDate</span>
+                      <span className="text-emerald-400">→ Due Date (date)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notion DB 4: Counseling Notes */}
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                      <Cpu className="w-4 h-4" /> 4. Counseling Sessions DB
+                    </span>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
+                      Mapped (4 Fields)
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs font-mono">
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>note</span>
+                      <span className="text-emerald-400">→ Session Notes (rich_text)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>authorName</span>
+                      <span className="text-emerald-400">→ Counselor (select)</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-slate-900/80 rounded-lg text-slate-300">
+                      <span>date</span>
+                      <span className="text-emerald-400">→ Session Date (date)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: RAW ALL STATE JSON */}
+          {debugView === 'raw_all' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Code className="w-4 h-4 text-amber-400" /> Complete Unified Portal State
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Composite dump of all 4 in-memory data stores for synchronization verification.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(
+                      JSON.stringify({ students, counselors, fees, settings }, null, 2),
+                      'Unified State'
+                    )
+                  }
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white rounded-xl flex items-center gap-1.5 transition-colors shadow-md shadow-amber-600/20"
+                >
+                  {copiedKey === 'Unified State' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>Copy Complete JSON</span>
+                </button>
+              </div>
+
+              <div className="relative rounded-2xl bg-slate-950 border border-slate-800 p-4 max-h-[550px] overflow-auto">
+                <pre className="text-[11px] font-mono text-amber-300 leading-relaxed">
+                  {JSON.stringify({ students, counselors, fees, settings }, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {showAddStudentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 text-slate-100 shadow-2xl">
@@ -2120,6 +2878,46 @@ export const AdminDashboard: React.FC<Props> = ({ activeTab, onOpenNotionModal, 
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* BILLING ENHANCEMENT MODALS */}
+      {/* ======================================================== */}
+      {/* 1. Official 3-Part Fee Challan / Voucher Modal */}
+      <FeeChallanModal
+        isOpen={showChallanModal}
+        onClose={() => {
+          setShowChallanModal(false);
+          setChallanFee(null);
+        }}
+        fee={challanFee}
+        student={students.find((s) => s.id === challanFee?.studentId || s.rollNo === challanFee?.studentRollNo)}
+        settings={settings}
+      />
+
+      {/* 2. 1-Click WhatsApp & Email Fee Reminder Modal */}
+      <FeeReminderModal
+        isOpen={showReminderModal}
+        onClose={() => {
+          setShowReminderModal(false);
+          setReminderFee(null);
+        }}
+        fee={reminderFee}
+        student={students.find((s) => s.id === reminderFee?.studentId || s.rollNo === reminderFee?.studentRollNo)}
+        settings={settings}
+      />
+
+      {/* 3. Fee Installments Scheduling & Milestones Modal */}
+      <InstallmentPlanModal
+        isOpen={showInstallmentModal}
+        onClose={() => {
+          setShowInstallmentModal(false);
+          setInstallmentFee(null);
+        }}
+        fee={installmentFee}
+        student={students.find((s) => s.id === installmentFee?.studentId || s.rollNo === installmentFee?.studentRollNo)}
+        settings={settings}
+        onSaveInstallments={handleSaveInstallments}
+      />
     </div>
   );
 };

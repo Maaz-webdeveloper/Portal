@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Shield,
   Check,
+  Terminal,
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -22,8 +23,8 @@ interface NavbarProps {
   onSyncNotion: () => void;
   isSyncing: boolean;
   notionConnected: boolean;
-  activeTab: 'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion';
-  setActiveTab: (tab: 'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion') => void;
+  activeTab: 'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion' | 'debug';
+  setActiveTab: (tab: 'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion' | 'debug') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,16 +41,24 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click safely
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setRoleDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  const handleRoleSelect = (role: 'admin' | 'counselor' | 'student', specificId?: string) => {
+    setRoleDropdownOpen(false);
+    switchRoleQuick(role, specificId);
+    if (role === 'admin' || role === 'counselor') {
+      setActiveTab('overview');
+    }
+  };
 
   const getRoleBadge = (role?: UserRole) => {
     switch (role) {
@@ -148,6 +157,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <Settings className="w-3.5 h-3.5" />
                   <span>Portal Settings</span>
                 </button>
+                <button
+                  onClick={() => setActiveTab('debug')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1 ${
+                    activeTab === 'debug'
+                      ? 'bg-amber-600 text-white shadow-sm'
+                      : 'text-amber-400 hover:text-amber-300 hover:bg-amber-950/30'
+                  }`}
+                  title="Debug Local State & Data Flow"
+                >
+                  <Terminal className="w-3.5 h-3.5" />
+                  <span>Debug</span>
+                </button>
               </>
             )}
 
@@ -231,6 +252,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Quick Switch Test Role Dropdown */}
             <div className="relative shrink-0" ref={dropdownRef}>
               <button
+                type="button"
                 onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
                 className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-sm ${badge.bg}`}
                 title="Switch between Admin, Counselor, and Student test views"
@@ -244,27 +266,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <>
                   {/* Backdrop click layer */}
                   <div
-                    className="fixed inset-0 z-[90] bg-black/20 md:bg-transparent"
+                    className="fixed inset-0 z-[90] bg-black/30 md:bg-transparent"
                     onClick={() => setRoleDropdownOpen(false)}
                   />
 
-                  {/* Dropdown Menu Panel (Highest z-index, immune to clipping) */}
-                  <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1.25rem)] bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl shadow-black/90 py-2.5 z-[100] text-xs animate-fadeIn max-h-[80vh] overflow-y-auto ring-1 ring-white/10">
+                  {/* Dropdown Menu Panel */}
+                  <div
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-0 top-full mt-2 w-84 max-w-[calc(100vw-1.25rem)] bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl shadow-black/90 py-2.5 z-[100] text-xs animate-fadeIn max-h-[82vh] overflow-y-auto ring-1 ring-white/10"
+                  >
                     <div className="px-3.5 py-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between border-b border-slate-800 mb-1">
                       <span>Switch Test Role / Portal</span>
-                      <span className="text-emerald-400 text-[9px] font-mono">Live Demo</span>
+                      <span className="text-emerald-400 text-[9px] font-mono">1-Click Switch</span>
                     </div>
 
                     {/* Section 1: Super Admin */}
                     <div className="px-2 py-1">
-                      <span className="text-[10px] font-bold text-slate-400 px-2 uppercase block mb-1">Admin Access</span>
+                      <span className="text-[10px] font-bold text-slate-400 px-2 uppercase block mb-1">Super Admin</span>
                       <button
-                        onClick={() => {
-                          switchRoleQuick('admin');
-                          setActiveTab('overview');
-                          setRoleDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
+                        type="button"
+                        onClick={() => handleRoleSelect('admin')}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
                           user?.role === 'admin'
                             ? 'text-indigo-300 font-bold bg-indigo-500/20 border border-indigo-500/40 shadow-sm'
                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -285,13 +308,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <div className="px-2 py-1 border-t border-slate-800 mt-1">
                       <span className="text-[10px] font-bold text-slate-400 px-2 uppercase block mb-1">Counselor Cohorts</span>
                       <button
-                        onClick={() => {
-                          switchRoleQuick('counselor', 'usr-counselor-1');
-                          setActiveTab('overview');
-                          setRoleDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
-                          user?.role === 'counselor' && user?.counselorId === 'counselor-1'
+                        type="button"
+                        onClick={() => handleRoleSelect('counselor', 'usr-counselor-1')}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                          user?.role === 'counselor' && (user?.counselorId === 'counselor-1' || user?.email?.includes('sarah'))
                             ? 'text-emerald-300 font-bold bg-emerald-500/20 border border-emerald-500/40 shadow-sm'
                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                         }`}
@@ -303,19 +323,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <span className="text-[10px] text-slate-400 block">STEM Cohort (3 Students)</span>
                           </div>
                         </div>
-                        {user?.role === 'counselor' && user?.counselorId === 'counselor-1' && (
+                        {user?.role === 'counselor' && (user?.counselorId === 'counselor-1' || user?.email?.includes('sarah')) && (
                           <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                         )}
                       </button>
 
                       <button
-                        onClick={() => {
-                          switchRoleQuick('counselor', 'usr-counselor-2');
-                          setActiveTab('overview');
-                          setRoleDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 ${
-                          user?.role === 'counselor' && user?.counselorId === 'counselor-2'
+                        type="button"
+                        onClick={() => handleRoleSelect('counselor', 'usr-counselor-2')}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 cursor-pointer ${
+                          user?.role === 'counselor' && (user?.counselorId === 'counselor-2' || user?.email?.includes('tariq'))
                             ? 'text-emerald-300 font-bold bg-emerald-500/20 border border-emerald-500/40 shadow-sm'
                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                         }`}
@@ -327,7 +344,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <span className="text-[10px] text-slate-400 block">Business Cohort (2 Students)</span>
                           </div>
                         </div>
-                        {user?.role === 'counselor' && user?.counselorId === 'counselor-2' && (
+                        {user?.role === 'counselor' && (user?.counselorId === 'counselor-2' || user?.email?.includes('tariq')) && (
                           <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                         )}
                       </button>
@@ -336,13 +353,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {/* Section 3: Student Portals */}
                     <div className="px-2 py-1 border-t border-slate-800 mt-1">
                       <span className="text-[10px] font-bold text-slate-400 px-2 uppercase block mb-1">Student Portals</span>
+                      
+                      {/* Student 1 */}
                       <button
-                        onClick={() => {
-                          switchRoleQuick('student', 'usr-student-1');
-                          setRoleDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
-                          user?.role === 'student' && user?.studentRollNo === 'STU-2024-001'
+                        type="button"
+                        onClick={() => handleRoleSelect('student', 'usr-student-1')}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                          user?.role === 'student' && (user?.studentRollNo === 'STU-2024-001' || user?.email?.includes('ayesha'))
                             ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-500/40 shadow-sm'
                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                         }`}
@@ -354,18 +371,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <span className="text-[10px] text-slate-400 font-mono block">STU-2024-001 • Paid</span>
                           </div>
                         </div>
-                        {user?.role === 'student' && user?.studentRollNo === 'STU-2024-001' && (
+                        {user?.role === 'student' && (user?.studentRollNo === 'STU-2024-001' || user?.email?.includes('ayesha')) && (
                           <Check className="w-4 h-4 text-sky-400 shrink-0" />
                         )}
                       </button>
 
+                      {/* Student 2 */}
                       <button
-                        onClick={() => {
-                          switchRoleQuick('student', 'usr-student-2');
-                          setRoleDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 ${
-                          user?.role === 'student' && user?.studentRollNo === 'STU-2024-002'
+                        type="button"
+                        onClick={() => handleRoleSelect('student', 'usr-student-2')}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 cursor-pointer ${
+                          user?.role === 'student' && (user?.studentRollNo === 'STU-2024-002' || user?.email?.includes('ali'))
                             ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-500/40 shadow-sm'
                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                         }`}
@@ -377,18 +393,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <span className="text-[10px] text-slate-400 font-mono block">STU-2024-002 • Pending</span>
                           </div>
                         </div>
-                        {user?.role === 'student' && user?.studentRollNo === 'STU-2024-002' && (
+                        {user?.role === 'student' && (user?.studentRollNo === 'STU-2024-002' || user?.email?.includes('ali')) && (
                           <Check className="w-4 h-4 text-sky-400 shrink-0" />
                         )}
                       </button>
 
+                      {/* Student 3 */}
                       <button
-                        onClick={() => {
-                          switchRoleQuick('student', 'usr-student-3');
-                          setRoleDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 ${
-                          user?.role === 'student' && user?.studentRollNo === 'STU-2024-003'
+                        type="button"
+                        onClick={() => handleRoleSelect('student', 'usr-student-3')}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 cursor-pointer ${
+                          user?.role === 'student' && (user?.studentRollNo === 'STU-2024-003' || user?.email?.includes('hamza'))
                             ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-500/40 shadow-sm'
                             : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                         }`}
@@ -400,7 +415,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <span className="text-[10px] text-slate-400 font-mono block">STU-2024-003 • Overdue</span>
                           </div>
                         </div>
-                        {user?.role === 'student' && user?.studentRollNo === 'STU-2024-003' && (
+                        {user?.role === 'student' && (user?.studentRollNo === 'STU-2024-003' || user?.email?.includes('hamza')) && (
+                          <Check className="w-4 h-4 text-sky-400 shrink-0" />
+                        )}
+                      </button>
+
+                      {/* Student 4 */}
+                      <button
+                        type="button"
+                        onClick={() => handleRoleSelect('student', 'usr-student-4')}
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors mt-1 cursor-pointer ${
+                          user?.role === 'student' && (user?.studentRollNo === 'STU-2024-004' || user?.email?.includes('zainab'))
+                            ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-500/40 shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <GraduationCap className="w-4 h-4 text-sky-400 shrink-0" />
+                          <div>
+                            <span className="block font-semibold text-xs">Zainab Bibi</span>
+                            <span className="text-[10px] text-slate-400 font-mono block">STU-2024-004 • Pending</span>
+                          </div>
+                        </div>
+                        {user?.role === 'student' && (user?.studentRollNo === 'STU-2024-004' || user?.email?.includes('zainab')) && (
                           <Check className="w-4 h-4 text-sky-400 shrink-0" />
                         )}
                       </button>

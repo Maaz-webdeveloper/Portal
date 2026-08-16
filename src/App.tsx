@@ -11,7 +11,7 @@ import { JwtInspectorModal } from './components/JwtInspectorModal';
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'counselors' | 'fees' | 'settings' | 'notion' | 'debug'>('overview');
   const [showNotionModal, setShowNotionModal] = useState(false);
   const [showArchitectureModal, setShowArchitectureModal] = useState(false);
   const [showJwtInspector, setShowJwtInspector] = useState(false);
